@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://turbo-linkedin-search.local/contracts/cv-schema.json",
+  "title": "Structured CV",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "partialDate": {
+      "anyOf": [
+        { "const": "" },
+        {
+          "type": "string",
+          "pattern": "^(\\d{4}|(0[1-9]|1[0-2])-\\d{4})$"
+        }
+      ]
+    }
+  },
+  "required": [
+    "personalInfo",
+    "summary",
+    "experience",
+    "education",
+    "skills",
+    "languages",
+    "certifications"
+  ],
+  "properties": {
+    "personalInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fullName", "email", "phone", "location", "linkedin", "website"],
+      "properties": {
+        "fullName": { "type": "string" },
+        "email": {
+          "anyOf": [
+            { "const": "" },
+            { "type": "string", "format": "email" }
+          ]
+        },
+        "phone": { "type": "string" },
+        "location": { "type": "string" },
+        "linkedin": {
+          "anyOf": [
+            { "const": "" },
+            { "type": "string", "pattern": "^https?://[^\\s]+$" }
+          ]
+        },
+        "website": {
+          "anyOf": [
+            { "const": "" },
+            { "type": "string", "pattern": "^https?://[^\\s]+$" }
+          ]
+        }
+      }
+    },
+    "summary": { "type": "string" },
+    "experience": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "company", "location", "startDate", "endDate", "achievements"],
+        "properties": {
+          "title": { "type": "string" },
+          "company": { "type": "string" },
+          "location": { "type": "string" },
+          "startDate": { "$ref": "#/$defs/partialDate" },
+          "endDate": { "$ref": "#/$defs/partialDate" },
+          "achievements": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "education": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["institution", "program", "startDate", "endDate", "description"],
+        "properties": {
+          "institution": { "type": "string" },
+          "program": { "type": "string" },
+          "startDate": { "$ref": "#/$defs/partialDate" },
+          "endDate": { "$ref": "#/$defs/partialDate" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "skills": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hard", "soft"],
+      "properties": {
+        "hard": { "type": "array", "items": { "type": "string" } },
+        "soft": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "languages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "proficiency"],
+        "properties": {
+          "name": { "type": "string" },
+          "proficiency": { "type": "string" }
+        }
+      }
+    },
+    "certifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "issuer", "issueDate", "expirationDate", "credential"],
+        "properties": {
+          "name": { "type": "string" },
+          "issuer": { "type": "string" },
+          "issueDate": { "$ref": "#/$defs/partialDate" },
+          "expirationDate": { "$ref": "#/$defs/partialDate" },
+          "credential": { "type": "string" }
+        }
+      }
+    }
+  }
+}
