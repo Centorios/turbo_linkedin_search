@@ -6,6 +6,7 @@ import { useSession } from "../auth/session-provider";
 import { generateCv } from "../lib/generate-cv-client";
 import { CvPreview, type CvTemplate } from "../components/cv-preview";
 import { TemplateSelector } from "../components/template-selector";
+import { PdfDownload } from "../components/pdf-download";
 
 export default function GeneratePage() {
   const { session, isLoading } = useSession();
@@ -55,7 +56,7 @@ export default function GeneratePage() {
           {isGenerating ? "Generando CV..." : "Generar CV"}
         </button>
       </form>
-      {cv && <><TemplateSelector value={template} onChange={setTemplate} /><CvPreview cv={cv} template={template} /></>}
+      {cv && <><TemplateSelector value={template} onChange={setTemplate} /><CvPreview cv={cv} template={template} /><PdfDownload cv={cv} template={template} /></>}
       <p data-testid="protected-content">Esta área está disponible para tu sesión activa.</p>
     </main>
   );
