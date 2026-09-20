@@ -2,6 +2,8 @@
 
 Vamos a dividir el desarrollo en 2 etapas: primero un MVP y luego un desarrollo final.
 
+> Para levantar el proyecto en local, correr los tests y las pruebas E2E: ver [docs/desarrollo.md](docs/desarrollo.md).
+
 ## Etapa 1: MVP - Generador de CV con IA
 El objetivo central es ingerir texto no estructurado y devolver un documento perfectamente formateado, con versiones puramente textuales para los Applicant Tracking Systems (ATS) y versiones con diseño para humanos.
 
@@ -96,3 +98,19 @@ graph TD
     Worker <-.->|D. Textos a Embeddings| Azure
     Worker -.->|E. Inserta Empleos + Vectores| DB
 ```
+
+## Estructura del repositorio
+
+```
+backend/    # FastAPI: API, validacion, autenticacion y persistencia (Supabase)
+frontend/   # Next.js: UI, plantillas y exportacion a PDF en el navegador
+tests/      # Pruebas contractuales, de integracion (pytest) y E2E (Playwright)
+specs/      # Especificaciones Spec Kit por feature
+docs/       # Documentacion: guia de desarrollo y diagramas
+.specify/   # Configuracion, plantillas y scripts de Spec Kit
+.github/    # Agentes, skills e instrucciones de Copilot
+```
+
+- Guia de desarrollo local y validacion: [docs/desarrollo.md](docs/desarrollo.md)
+- Diagrama de componentes (imagen): [docs/Diagrama.png](docs/Diagrama.png)
+- Guia para agentes de IA: [AGENTS.md](AGENTS.md)

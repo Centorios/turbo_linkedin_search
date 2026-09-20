@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node.js / frontend
+node_modules/
+dist/
+build/
+.next/
+coverage/
+test-results/
+*.tsbuildinfo
+*.log
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+
+# Archivos generados por Claude (Cowork), no forman parte del repo
+Claude outputs/
