@@ -19,7 +19,10 @@ test-results/
 *.log
 
 # Environment and secrets
+.env
+.env.*
 !.env.example
+!.env.*.example
 
 # Editors and OS
 .vscode/
@@ -28,3 +31,6 @@ test-results/
 Thumbs.db
 *.tmp
 *.swp
+
+# Archivos generados por Claude (Cowork), no forman parte del repo
+Claude outputs/
