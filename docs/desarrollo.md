@@ -37,6 +37,9 @@ npm run dev -- --hostname 127.0.0.1
 
 Abrir `http://localhost:3000/auth`.
 
+> Si ya tenías `frontend/node_modules` de antes, volvé a correr `npm install`: la interfaz
+> ahora usa Tailwind CSS (`tailwindcss` + `@tailwindcss/postcss`) y necesita esa dependencia.
+
 ### Validacion
 
 ```powershell

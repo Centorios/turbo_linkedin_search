@@ -2,11 +2,11 @@ import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { CvTemplate } from "../components/cv-preview";
 import type { Certification, Education, Experience, PartialDate, StructuredCv } from "../types/cv";
 
-const ACCENT_COLOR = "#6D28D9";
-const MUTED_COLOR = "#52525b";
+const ACCENT_COLOR = "#2563EB";
+const MUTED_COLOR = "#475569";
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: 40, paddingVertical: 36, fontSize: 10, fontFamily: "Helvetica", color: "#18181b" },
+  page: { paddingHorizontal: 40, paddingVertical: 36, fontSize: 10, fontFamily: "Helvetica", color: "#0F172A" },
   name: { fontSize: 20, fontFamily: "Helvetica-Bold", marginBottom: 2 },
   contact: { fontSize: 9, color: MUTED_COLOR, marginBottom: 10 },
   summary: { fontSize: 10, lineHeight: 1.4, marginBottom: 12 },
