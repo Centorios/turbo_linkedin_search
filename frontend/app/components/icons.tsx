@@ -74,3 +74,22 @@ export function EyeOffIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function SparkleIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M10 2.5c.28 0 .52.18.6.45l1.1 3.6 3.6 1.1a.63.63 0 0 1 0 1.2l-3.6 1.1-1.1 3.6a.63.63 0 0 1-1.2 0l-1.1-3.6-3.6-1.1a.63.63 0 0 1 0-1.2l3.6-1.1 1.1-3.6c.08-.27.32-.45.6-.45Z" />
+      <path d="M16 12.5c.2 0 .38.13.44.32l.4 1.34 1.34.4a.47.47 0 0 1 0 .9l-1.34.4-.4 1.34a.47.47 0 0 1-.9 0l-.4-1.34-1.34-.4a.47.47 0 0 1 0-.9l1.34-.4.4-1.34c.06-.19.24-.32.44-.32Z" />
+    </svg>
+  );
+}
+
+export function DocumentIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
+      <path d="M6 2.5h5.5L16 7v9.75a.75.75 0 0 1-.75.75h-9.5A.75.75 0 0 1 5 16.75V3.25a.75.75 0 0 1 .75-.75Z" strokeLinejoin="round" />
+      <path d="M11.5 2.5V7H16" strokeLinejoin="round" />
+      <path d="M7.5 10.5h5M7.5 13h5M7.5 8h2" strokeLinecap="round" />
+    </svg>
+  );
+}
