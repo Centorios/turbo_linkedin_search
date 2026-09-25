@@ -142,7 +142,8 @@ function AuthPageContent() {
                 />
                 <button
                   type="button"
-                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  aria-label={showPassword ? "Ocultar entrada" : "Mostrar entrada"}
+                  aria-pressed={showPassword}
                   onClick={() => setShowPassword((visible) => !visible)}
                   className="focus-ring absolute right-2.5 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted"
                 >

@@ -18,8 +18,8 @@ async function signIn(page: Page) {
     throw new Error("Configura E2E_EMAIL y E2E_PASSWORD antes de ejecutar las pruebas");
   }
   await page.goto("/auth");
-  await page.getByLabel("Correo electrónico").fill(validEmail);
-  await page.getByLabel("Contraseña").fill(validPassword);
+  await page.getByTestId("auth-email").fill(validEmail);
+  await page.getByTestId("auth-password").fill(validPassword);
   await page.getByTestId("auth-submit").click();
   await expect(page).toHaveURL(/\/generate$/);
 }
