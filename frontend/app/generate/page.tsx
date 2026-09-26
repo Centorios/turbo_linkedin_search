@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { AppHeader } from "../components/app-header";
 import { BasicProfileModal } from "../components/basic-profile-modal";
+import { TrajectoryAssistant } from "../components/trajectory-assistant";
 import { useSession } from "../auth/session-provider";
 import { generateCv } from "../lib/generate-cv-client";
 import { CvPreview, type CvTemplate } from "../components/cv-preview";
@@ -28,6 +29,9 @@ export default function GeneratePage() {
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const isProfileBlocking = profileStatus === "loading" || profileStatus === "error" || profileStatus === "saving";
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const [hasReviewedAssistance, setHasReviewedAssistance] = useState(false);
+  const [approvedAssistantText, setApprovedAssistantText] = useState<string[]>([]);
 
   if (isLoading) {
     return (
@@ -64,12 +68,30 @@ export default function GeneratePage() {
     setError(null);
     setIsGenerating(true);
     try {
-      setCv(await generateCv(text));
+      const confirmedSuggestions = hasReviewedAssistance && approvedAssistantText.length > 0
+        ? `\n\nInformación factual revisada y confirmada por el usuario:\n${approvedAssistantText.map((item) => `- ${item}`).join("\n")}`
+        : "";
+      setCv(await generateCv(`${text}${confirmedSuggestions}`));
     } catch (generationError) {
       setError(generationError instanceof Error ? generationError.message : "No se pudo generar el CV. Inténtalo de nuevo.");
     } finally {
       setIsGenerating(false);
     }
+  }
+
+  function openAssistant() {
+    if (!text.trim()) {
+      setError("Escribe tu trayectoria antes de solicitar ayuda.");
+      return;
+    }
+    setError(null);
+    setIsAssistantOpen(true);
+  }
+
+  function updateSourceText(value: string) {
+    setText(value);
+    setHasReviewedAssistance(false);
+    setApprovedAssistantText([]);
   }
 
   return (
@@ -126,7 +148,7 @@ export default function GeneratePage() {
                 <textarea
                   id="professional-text"
                   value={text}
-                  onChange={(event) => setText(event.target.value)}
+                  onChange={(event) => updateSourceText(event.target.value)}
                   rows={12}
                   data-testid="professional-text"
                   placeholder="Ej.: Ana García, ana@example.com, Madrid. Senior Designer en Acme (03-2021 a la actualidad). Lideré el rediseño del checkout, reduciendo el abandono un 18%. Educación: Diseño Gráfico en UBA (2015-2019)."
@@ -146,6 +168,16 @@ export default function GeneratePage() {
                 )}
 
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={openAssistant}
+                    disabled={isGenerating}
+                    data-testid="trajectory-assistance-open"
+                    className="focus-ring flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2.5 text-body-sm font-semibold text-text transition-colors hover:bg-subtle disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    <SparkleIcon className="h-4 w-4" />
+                    Mejorar trayectoria y competencias
+                  </button>
                   <button
                     type="submit"
                     disabled={isGenerating || isProfileBlocking}
@@ -202,6 +234,22 @@ export default function GeneratePage() {
           </section>
         </div>
       </main>
+      {isAssistantOpen && (
+        <TrajectoryAssistant
+          sourceText={text}
+          onUseAccepted={(approvedText) => {
+            setApprovedAssistantText(approvedText);
+            setHasReviewedAssistance(true);
+            setIsAssistantOpen(false);
+          }}
+          onContinueWithoutSuggestions={() => {
+            setApprovedAssistantText([]);
+            setHasReviewedAssistance(true);
+            setIsAssistantOpen(false);
+          }}
+          onClose={() => setIsAssistantOpen(false)}
+        />
+      )}
     </div>
   );
 }

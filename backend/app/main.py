@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.generate_cv import router as generate_cv_router
 from app.api.profile import router as profile_router
+from app.api.trajectory_assistance import router as trajectory_assistance_router
 from app.core.logging import RequestLoggingMiddleware
 from app.core.settings import get_settings
 
@@ -23,6 +24,7 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestLoggingMiddleware)
     app.include_router(generate_cv_router)
     app.include_router(profile_router)
+    app.include_router(trajectory_assistance_router)
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -39,12 +41,27 @@ def create_app() -> FastAPI:
                     "website",
                 }
             }
-            return JSONResponse(
-                status_code=422,
-                content={
-                    "detail": {
-                        "code": "invalid_profile",
-                        "message": "Los datos del perfil no son válidos",
+            code = "invalid_profile"
+            message = "Los datos del perfil no son válidos"
+            status_code = 422
+        elif request.url.path == "/api/trajectory-assistance/turn":
+            fields = {
+                str(error["loc"][-1]): "Valor no válido"
+                for error in exc.errors()
+                if error.get("loc")
+            }
+            code = "invalid_assistance_request"
+            message = "La solicitud de asistencia no es válida"
+            status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        else:
+            return await request_validation_exception_handler(request, exc)
+
+        return JSONResponse(
+            status_code=status_code,
+            content={
+                "detail": {
+                    "code": code,
+                    "message": message,
                         "fields": fields,
                     }
                 },
