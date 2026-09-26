@@ -106,14 +106,14 @@ description: "Task list for End-to-End CV Generation Flow"
 
 **Purpose**: Validate the integrated MVP, security boundary and operational readiness.
 
-- [ ] T047 [P] Add end-to-end integration coverage for the quickstart authenticated generation scenario in `tests/integration/test_full_flow.py`.
+- [X] T047 [P] Add end-to-end integration coverage for the quickstart authenticated generation scenario in `tests/integration/test_full_flow.py`.
 - [ ] T048 [P] Add accessibility checks for auth, textarea, loading/error states, template selection and PDF action in `tests/e2e/accessibility.spec.ts`.
-- [ ] T049 Add structured safe logging for request IDs, outcome codes and latency while excluding tokens, prompts, CV text and connection strings in `backend/app/core/logging.py`.
-- [ ] T050 Add Render deployment configuration with backend-only secrets in `render.yaml`.
-- [ ] T051 Add Vercel deployment configuration with only public frontend variables in `vercel.json` and `frontend/.env.example`.
-- [ ] T052 Add a security review checklist for bundles, responses, logs and repository files in `docs/security-review.md`.
+- [X] T049 Add structured safe logging for request IDs, outcome codes and latency while excluding tokens, prompts, CV text and connection strings in `backend/app/core/logging.py`.
+- [X] T050 Add Render deployment configuration with backend-only secrets in `render.yaml`.
+- [X] T051 Add Vercel deployment configuration with only public frontend variables in `vercel.json` and `frontend/.env.example`.
+- [X] T052 Add a security review checklist for bundles, responses, logs and repository files in `docs/security-review.md`.
 - [ ] T053 Run backend pytest contract/integration tests, frontend Vitest tests and Playwright scenarios documented in `specs/001-cv-generation-flow/quickstart.md`; execute at least 30 valid requests, calculate the $T_0$/$T_f$ p90, and record outcomes in `specs/001-cv-generation-flow/validation-results.md`.
-- [ ] T054 Run `git diff --check` and verify all implementation tasks preserve the MVP exclusions in `specs/001-cv-generation-flow/plan.md`.
+- [X] T054 Run `git diff --check` and verify all implementation tasks preserve the MVP exclusions in `specs/001-cv-generation-flow/plan.md`.
 
 ## Dependencies and Execution Order
 

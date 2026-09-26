@@ -42,7 +42,7 @@ async def generate_cv(
     except AzureOpenAIError:
         raise _error(status.HTTP_502_BAD_GATEWAY, "provider_unavailable", "El servicio de generación no está disponible")
     except Exception as exc:
-        logger.exception("cv_generation_failed", extra={"error_type": type(exc).__name__})
+        logger.error("cv_generation_failed", extra={"error_type": type(exc).__name__})
         raise _error(status.HTTP_500_INTERNAL_SERVER_ERROR, "generation_failed", "No se pudo completar la generación")
     return GenerateCvResponse.model_validate(result.model_dump())
 
