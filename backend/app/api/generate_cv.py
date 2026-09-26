@@ -7,6 +7,7 @@ from app.core.auth import require_user_id
 from app.models.generate_cv import GenerateCvRequest, GenerateCvResponse, parse_request_id
 from app.services.azure_openai import AzureOpenAIError
 from app.services.cv_generation import CvGenerationService, InvalidGeneratedCvError
+from app.services.profile_repository import ProfileRepository
 
 
 router = APIRouter(prefix="/api", tags=["cv-generation"])
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_generation_service() -> CvGenerationService:
-    return CvGenerationService()
+    return CvGenerationService(profile_repository=ProfileRepository())
 
 
 @router.post("/generate-cv", response_model=GenerateCvResponse)

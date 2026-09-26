@@ -42,6 +42,7 @@ test.describe("Autenticación", () => {
 
     await expect(page).toHaveURL(/\/generate$/);
     await expect(page.getByTestId("protected-content")).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toBeVisible();
   });
 
   test("muestra un error para credenciales inválidas", async ({ page }) => {
@@ -61,9 +62,12 @@ test.describe("Autenticación", () => {
     await page.getByTestId("auth-submit").click();
     await expect(page.getByTestId("protected-content")).toBeVisible();
 
+    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toBeVisible();
+
     await page.reload();
 
     await expect(page.getByTestId("protected-content")).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toBeVisible();
   });
 
   test("cierra la sesión y vuelve a bloquear el flujo privado", async ({ page }) => {
@@ -73,6 +77,11 @@ test.describe("Autenticación", () => {
     await page.getByLabel("Contraseña").fill(credentials.password);
     await page.getByTestId("auth-submit").click();
     await expect(page.getByTestId("protected-content")).toBeVisible();
+
+    const deferProfile = page.getByRole("button", { name: "Completar más tarde" });
+    if (await deferProfile.isVisible()) {
+      await deferProfile.click();
+    }
 
     await page.getByTestId("auth-sign-out").click();
 

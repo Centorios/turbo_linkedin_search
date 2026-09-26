@@ -33,6 +33,10 @@ async function signIn(page: Page) {
   await page.getByLabel("Contraseña").fill(validPassword);
   await page.getByTestId("auth-submit").click();
   await expect(page).toHaveURL(/\/generate$/);
+  const deferProfile = page.getByRole("button", { name: "Completar más tarde" });
+  if (await deferProfile.isVisible()) {
+    await deferProfile.click();
+  }
 }
 
 async function generateCv(page: Page, cv: unknown) {

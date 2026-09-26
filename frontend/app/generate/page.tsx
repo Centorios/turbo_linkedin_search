@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { AppHeader } from "../components/app-header";
+import { BasicProfileModal } from "../components/basic-profile-modal";
 import { TrajectoryAssistant } from "../components/trajectory-assistant";
 import { useSession } from "../auth/session-provider";
 import { generateCv } from "../lib/generate-cv-client";
@@ -11,12 +12,23 @@ import { PdfDownload } from "../components/pdf-download";
 import { AlertIcon, BoltIcon, DocumentIcon, SparkleIcon, SpinnerIcon } from "../components/icons";
 
 export default function GeneratePage() {
-  const { session, isLoading } = useSession();
+  const {
+    session,
+    isLoading,
+    profile,
+    profileStatus,
+    profileError,
+    saveError,
+    refreshProfile,
+    saveProfile,
+    deferProfile,
+  } = useSession();
   const [text, setText] = useState("");
   const [cv, setCv] = useState<Awaited<ReturnType<typeof generateCv>> | null>(null);
   const [template, setTemplate] = useState<CvTemplate>("ats");
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const isProfileBlocking = profileStatus === "loading" || profileStatus === "error" || profileStatus === "saving";
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [hasReviewedAssistance, setHasReviewedAssistance] = useState(false);
   const [approvedAssistantText, setApprovedAssistantText] = useState<string[]>([]);
@@ -44,6 +56,10 @@ export default function GeneratePage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isProfileBlocking) {
+      setError("Carga o guarda tu perfil antes de generar el CV.");
+      return;
+    }
     if (!text.trim()) {
       setError("Escribe tu biografía o experiencia profesional antes de continuar.");
       return;
@@ -81,6 +97,16 @@ export default function GeneratePage() {
   return (
     <div data-testid="protected-content" className="min-h-screen bg-canvas">
       <AppHeader />
+      {(profileStatus === "missing" || profileStatus === "saving") && session && (
+        <BasicProfileModal
+          email={session.user.email ?? ""}
+          profile={profile}
+          isSaving={profileStatus === "saving"}
+          saveError={saveError}
+          onSave={saveProfile}
+          onDefer={deferProfile}
+        />
+      )}
       <main className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
           {/* LEFT COLUMN: free-text input and generation trigger */}
@@ -98,6 +124,22 @@ export default function GeneratePage() {
                   resultado.
                 </p>
               </div>
+
+              {profileError && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-danger-surface p-3">
+                  <p role="alert" data-testid="profile-load-error" className="text-body-sm text-danger">
+                    {profileError}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void refreshProfile()}
+                    data-testid="profile-retry"
+                    className="focus-ring rounded-lg border border-danger px-3 py-1.5 text-body-sm font-semibold text-danger"
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              )}
 
               <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-1.5">
                 <label htmlFor="professional-text" className="text-body-sm font-semibold text-text">
@@ -138,7 +180,7 @@ export default function GeneratePage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isGenerating}
+                    disabled={isGenerating || isProfileBlocking}
                     data-testid="generate-submit"
                     className="focus-ring flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-body-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-70"
                   >

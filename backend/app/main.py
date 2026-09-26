@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.generate_cv import router as generate_cv_router
+from app.api.profile import router as profile_router
 from app.api.trajectory_assistance import router as trajectory_assistance_router
 from app.core.logging import RequestLoggingMiddleware
 from app.core.settings import get_settings
@@ -22,22 +23,45 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RequestLoggingMiddleware)
     app.include_router(generate_cv_router)
+    app.include_router(profile_router)
     app.include_router(trajectory_assistance_router)
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
-        if request.url.path == "/api/trajectory-assistance/turn":
+        if request.url.path in {"/api/profile", "/api/profile/"}:
+            fields = {
+                str(error["loc"][-1]): "Valor no válido"
+                for error in exc.errors()
+                if error.get("loc") and error["loc"][-1] in {
+                    "fullName",
+                    "email",
+                    "phone",
+                    "location",
+                    "linkedin",
+                    "website",
+                }
+            }
+            code = "invalid_profile"
+            message = "Los datos del perfil no son válidos"
+            status_code = 422
+        elif request.url.path == "/api/trajectory-assistance/turn":
             fields = {
                 str(error["loc"][-1]): "Valor no válido"
                 for error in exc.errors()
                 if error.get("loc")
             }
-            return JSONResponse(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                content={
-                    "detail": {
-                        "code": "invalid_assistance_request",
-                        "message": "La solicitud de asistencia no es válida",
+            code = "invalid_assistance_request"
+            message = "La solicitud de asistencia no es válida"
+            status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        else:
+            return await request_validation_exception_handler(request, exc)
+
+        return JSONResponse(
+            status_code=status_code,
+            content={
+                "detail": {
+                    "code": code,
+                    "message": message,
                         "fields": fields,
                     }
                 },
