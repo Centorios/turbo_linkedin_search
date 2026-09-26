@@ -33,6 +33,7 @@ def test_profile_accepts_empty_optional_fields() -> None:
         "location": "",
         "linkedin": "",
         "website": "",
+        "photoPath": None,
     }
 
 

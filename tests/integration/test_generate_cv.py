@@ -16,7 +16,10 @@ USER_PROFILE = {
     "location": "Barcelona",
     "linkedin": "https://www.linkedin.com/in/confirmed",
     "website": "",
+    "photoPath": None,
 }
+
+PROFILE_PHOTO_PATH = "00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002.webp"
 
 
 class FakeProfileRepository:
@@ -102,6 +105,7 @@ def test_profile_overrides_nonempty_personal_fields_and_preserves_professional_s
         "location": "Barcelona",
         "linkedin": "https://www.linkedin.com/in/confirmed",
         "website": "",
+        "photoPath": None,
     }
     assert response.status_code == 200
     assert response.json()["personalInfo"] == expected_personal
@@ -134,6 +138,22 @@ def test_empty_profile_fields_fall_back_to_generated_personal_information(
     assert response.json()["personalInfo"]["fullName"] == "Nombre confirmado"
 
 
+def test_profile_photo_path_is_propagated_to_generated_cv(generation_with_profile) -> None:
+    client, _, resume_repository, profile_repository = generation_with_profile
+    profile_repository.profile = {**USER_PROFILE, "photoPath": PROFILE_PHOTO_PATH}
+    request_id = "00000000-0000-0000-0000-000000000024"
+
+    response = client.post(
+        "/api/generate-cv",
+        headers={"Idempotency-Key": request_id},
+        json={"text": "Perfil"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["personalInfo"]["photoPath"] == PROFILE_PHOTO_PATH
+    assert resume_repository.rows[("user-1", request_id)]["data"]["personalInfo"]["photoPath"] == PROFILE_PHOTO_PATH
+
+
 def test_profile_read_failure_stops_provider_and_persistence(generation_with_profile) -> None:
     client, provider, resume_repository, profile_repository = generation_with_profile
     profile_repository.fail = True
@@ -156,12 +176,18 @@ def test_idempotent_result_uses_current_profile_without_second_provider_call(gen
     headers = {"Idempotency-Key": request_id}
 
     first = client.post("/api/generate-cv", headers=headers, json={"text": "Perfil original"})
-    profile_repository.profile = {**USER_PROFILE, "fullName": "Nombre actualizado", "email": ""}
+    profile_repository.profile = {
+        **USER_PROFILE,
+        "fullName": "Nombre actualizado",
+        "email": "",
+        "photoPath": PROFILE_PHOTO_PATH,
+    }
     second = client.post("/api/generate-cv", headers=headers, json={"text": "Texto distinto"})
 
     assert first.status_code == 200
     assert second.status_code == 200
     assert second.json()["personalInfo"]["fullName"] == "Nombre actualizado"
     assert second.json()["personalInfo"]["email"] == USER_PROFILE["email"]
+    assert second.json()["personalInfo"]["photoPath"] == PROFILE_PHOTO_PATH
     assert provider.calls == 1
     assert len(resume_repository.rows) == 1

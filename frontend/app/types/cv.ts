@@ -7,6 +7,8 @@ export interface PersonalInfo {
   location: string;
   linkedin: string;
   website: string;
+  photoPath?: string | null;
+  photoUrl?: string | null;
 }
 
 export interface Experience {

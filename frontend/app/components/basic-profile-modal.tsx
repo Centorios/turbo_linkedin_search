@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { deleteProfilePhoto, getProfilePhotoUrl, uploadProfilePhoto, validateProfilePhoto } from "../lib/profile-photo-client";
 import type { BasicProfile } from "../types/profile";
 
 type BasicProfileModalProps = {
   email: string;
   profile: BasicProfile | null;
   isSaving: boolean;
+  isEditing?: boolean;
   saveError: string | null;
-  onSave: (profile: BasicProfile) => Promise<void>;
+  onSave: (profile: BasicProfile) => Promise<boolean>;
   onDefer: () => void;
+  onSaved?: () => void;
 };
 
 type ProfileErrors = Partial<Record<keyof BasicProfile, string>>;
@@ -31,6 +34,7 @@ function emptyProfile(email: string): BasicProfile {
     location: "",
     linkedin: "",
     website: "",
+    photoPath: null,
   };
 }
 
@@ -66,21 +70,62 @@ export function BasicProfileModal({
   email,
   profile,
   isSaving,
+  isEditing = false,
   saveError,
   onSave,
   onDefer,
+  onSaved,
 }: BasicProfileModalProps) {
   const [values, setValues] = useState<BasicProfile>(() => profileFormValues(profile, email));
   const [errors, setErrors] = useState<ProfileErrors>({});
+  const [selectedPhoto, setSelectedPhoto] = useState<{ file: File; url: string } | null>(null);
+  const [storedPhotoUrl, setStoredPhotoUrl] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   useEffect(() => {
     setValues(profileFormValues(profile, email));
     setErrors({});
+    setSelectedPhoto(null);
+    setPhotoError(null);
   }, [email, profile]);
+
+  useEffect(() => {
+    return () => {
+      if (selectedPhoto) URL.revokeObjectURL(selectedPhoto.url);
+    };
+  }, [selectedPhoto]);
+
+  useEffect(() => {
+    let active = true;
+    setStoredPhotoUrl(null);
+    if (!values.photoPath) return () => { active = false; };
+    void getProfilePhotoUrl(values.photoPath)
+      .then((url) => { if (active) setStoredPhotoUrl(url); })
+      .catch(() => { if (active) setPhotoError("No se pudo cargar la foto guardada. Puedes seleccionar otra."); });
+    return () => { active = false; };
+  }, [values.photoPath]);
 
   function updateField(field: keyof BasicProfile, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
+  }
+
+  function selectPhoto(file: File | undefined) {
+    if (!file) return;
+    const validationError = validateProfilePhoto(file);
+    if (validationError) {
+      setPhotoError(validationError);
+      return;
+    }
+    setPhotoError(null);
+    setSelectedPhoto({ file, url: URL.createObjectURL(file) });
+  }
+
+  function removePhoto() {
+    setSelectedPhoto(null);
+    setStoredPhotoUrl(null);
+    setPhotoError(null);
+    setValues((current) => ({ ...current, photoPath: null }));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -88,7 +133,27 @@ export function BasicProfileModal({
     const nextErrors = validateProfile(values);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    await onSave({ ...values, fullName: values.fullName.trim() });
+    setPhotoError(null);
+    let uploadedPath: string | null = null;
+    const nextProfile = { ...values, fullName: values.fullName.trim() };
+    try {
+      if (selectedPhoto) {
+        uploadedPath = await uploadProfilePhoto(selectedPhoto.file);
+        nextProfile.photoPath = uploadedPath;
+      }
+      const saved = await onSave(nextProfile);
+      if (!saved && uploadedPath) {
+        await deleteProfilePhoto(uploadedPath).catch(() => undefined);
+        return;
+      }
+      if (saved && profile?.photoPath && profile.photoPath !== nextProfile.photoPath) {
+        await deleteProfilePhoto(profile.photoPath).catch(() => undefined);
+      }
+      if (saved) onSaved?.();
+    } catch (submitError) {
+      if (uploadedPath) await deleteProfilePhoto(uploadedPath).catch(() => undefined);
+      setPhotoError(submitError instanceof Error ? submitError.message : "No se pudo guardar la foto.");
+    }
   }
 
   return (
@@ -105,10 +170,12 @@ export function BasicProfileModal({
       >
         <header>
           <h2 id="basic-profile-title" className="text-headline-lg text-text">
-            Completa tu perfil básico
+            {isEditing ? "Editar perfil" : "Completa tu perfil básico"}
           </h2>
           <p className="mt-2 text-body-sm text-text-muted">
-            Estos datos se usarán en la información personal de tus CVs. Puedes completarlos ahora o más tarde.
+            {isEditing
+              ? "Actualiza los datos personales que aparecerán en tus CVs."
+              : "Estos datos se usarán en la información personal de tus CVs. Puedes completarlos ahora o más tarde."}
           </p>
         </header>
 
@@ -143,6 +210,48 @@ export function BasicProfileModal({
             );
           })}
 
+          <div className="sm:col-span-2">
+            <label htmlFor="profile-photo" className="mb-1.5 block text-body-sm font-semibold text-text">
+              Foto de perfil <span className="font-normal text-text-muted">(opcional)</span>
+            </label>
+            <input
+              id="profile-photo"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              aria-describedby="profile-photo-hint"
+              onChange={(event) => selectPhoto(event.currentTarget.files?.[0])}
+              data-testid="profile-photo-input"
+              className="focus-ring w-full rounded-lg border border-border bg-surface px-3 py-2 text-body-sm text-text"
+            />
+            <p id="profile-photo-hint" className="mt-1 text-caption-xs text-text-muted">
+              JPEG, PNG o WebP; máximo 5 MB.
+            </p>
+            {(selectedPhoto?.url || storedPhotoUrl) && (
+              <img
+                src={selectedPhoto?.url ?? storedPhotoUrl ?? ""}
+                alt="Foto de perfil"
+                data-testid="profile-photo-preview"
+                className="mt-3 h-20 w-20 rounded-full border border-border object-cover"
+              />
+            )}
+            {(selectedPhoto || values.photoPath) && (
+              <button
+                type="button"
+                onClick={removePhoto}
+                disabled={isSaving}
+                data-testid="profile-photo-remove"
+                className="focus-ring mt-2 rounded-md border border-border px-3 py-1.5 text-caption-xs font-semibold text-text-muted disabled:opacity-60"
+              >
+                Quitar foto
+              </button>
+            )}
+            {photoError && (
+              <p role="alert" data-testid="profile-photo-error" className="mt-2 text-caption-xs text-danger">
+                {photoError}
+              </p>
+            )}
+          </div>
+
           {saveError && (
             <p role="alert" data-testid="profile-save-error" className="sm:col-span-2 text-body-sm text-danger">
               {saveError}
@@ -157,7 +266,7 @@ export function BasicProfileModal({
               data-testid="profile-defer"
               className="focus-ring rounded-lg border border-border px-4 py-2 text-body-sm font-semibold text-text-muted hover:bg-subtle disabled:opacity-60"
             >
-              Completar más tarde
+              {isEditing ? "Cancelar" : "Completar más tarde"}
             </button>
             <button
               type="submit"

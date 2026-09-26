@@ -40,12 +40,16 @@ class CvGenerationService:
         except Exception:
             existing = self.repository.get_by_request(user_id, request_id)
             if existing:
-                return self._validate(existing["data"])
+                return self._with_profile(self._validate(existing["data"]), profile)
             raise
         return self._validate(saved["data"])
 
     @classmethod
-    def _with_profile(cls, document: StructuredCv, profile: dict[str, str] | None) -> StructuredCv:
+    def _with_profile(
+        cls,
+        document: StructuredCv,
+        profile: dict[str, str | None] | None,
+    ) -> StructuredCv:
         if profile is None:
             return document
         data = document.model_dump()
@@ -53,6 +57,7 @@ class CvGenerationService:
             value = profile[field]
             if value:
                 data["personalInfo"][field] = value
+        data["personalInfo"]["photoPath"] = profile.get("photoPath")
         return cls._validate(data)
 
     @staticmethod

@@ -22,10 +22,22 @@ export function CreativoPdf({ cv }: { cv: StructuredCv }) {
   return (
     <article data-testid="template-creativo-pdf" className="flex flex-col gap-4 text-text">
       <header className="border-l-4 border-primary pl-4">
-        <p className="text-label-xs uppercase tracking-wider text-primary">Perfil profesional</p>
-        <h2 className="mt-1 text-headline-2xl font-bold text-text">{cv.personalInfo.fullName || "Nombre profesional"}</h2>
-        {contact && <p className="mt-1 text-body-sm text-text-muted">{contact}</p>}
-        {cv.summary && <p className="mt-2 text-body-sm leading-relaxed text-text">{cv.summary}</p>}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-label-xs uppercase tracking-wider text-primary">Perfil profesional</p>
+            <h2 className="mt-1 text-headline-2xl font-bold text-text">{cv.personalInfo.fullName || "Nombre profesional"}</h2>
+            {contact && <p className="mt-1 text-body-sm text-text-muted">{contact}</p>}
+            {cv.summary && <p className="mt-2 text-body-sm leading-relaxed text-text">{cv.summary}</p>}
+          </div>
+          {cv.personalInfo.photoUrl && (
+            <img
+              src={cv.personalInfo.photoUrl}
+              alt="Foto de perfil"
+              data-testid="cv-profile-photo"
+              className="h-20 w-20 shrink-0 rounded-full border border-border object-cover"
+            />
+          )}
+        </div>
       </header>
 
       <section>

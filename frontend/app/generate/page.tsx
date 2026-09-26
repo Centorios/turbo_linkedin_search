@@ -6,6 +6,7 @@ import { BasicProfileModal } from "../components/basic-profile-modal";
 import { TrajectoryAssistant } from "../components/trajectory-assistant";
 import { useSession } from "../auth/session-provider";
 import { generateCv } from "../lib/generate-cv-client";
+import { getProfilePhotoUrl } from "../lib/profile-photo-client";
 import { CvPreview, type CvTemplate } from "../components/cv-preview";
 import { TemplateSelector } from "../components/template-selector";
 import { PdfDownload } from "../components/pdf-download";
@@ -30,6 +31,7 @@ export default function GeneratePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const isProfileBlocking = profileStatus === "loading" || profileStatus === "error" || profileStatus === "saving";
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [hasReviewedAssistance, setHasReviewedAssistance] = useState(false);
   const [approvedAssistantText, setApprovedAssistantText] = useState<string[]>([]);
 
@@ -71,7 +73,16 @@ export default function GeneratePage() {
       const confirmedSuggestions = hasReviewedAssistance && approvedAssistantText.length > 0
         ? `\n\nInformación factual revisada y confirmada por el usuario:\n${approvedAssistantText.map((item) => `- ${item}`).join("\n")}`
         : "";
-      setCv(await generateCv(`${text}${confirmedSuggestions}`));
+      const generatedCv = await generateCv(`${text}${confirmedSuggestions}`);
+      if (generatedCv.personalInfo.photoPath) {
+        try {
+          const photoUrl = await getProfilePhotoUrl(generatedCv.personalInfo.photoPath);
+          generatedCv.personalInfo.photoUrl = photoUrl;
+        } catch {
+          generatedCv.personalInfo.photoUrl = null;
+        }
+      }
+      setCv(generatedCv);
     } catch (generationError) {
       setError(generationError instanceof Error ? generationError.message : "No se pudo generar el CV. Inténtalo de nuevo.");
     } finally {
@@ -97,14 +108,19 @@ export default function GeneratePage() {
   return (
     <div data-testid="protected-content" className="min-h-screen bg-canvas">
       <AppHeader />
-      {(profileStatus === "missing" || profileStatus === "saving") && session && (
+      {(profileStatus === "missing" || profileStatus === "saving" || isProfileModalOpen) && session && (
         <BasicProfileModal
           email={session.user.email ?? ""}
           profile={profile}
           isSaving={profileStatus === "saving"}
+          isEditing={Boolean(profile)}
           saveError={saveError}
           onSave={saveProfile}
-          onDefer={deferProfile}
+          onSaved={() => setIsProfileModalOpen(false)}
+          onDefer={() => {
+            if (isProfileModalOpen) setIsProfileModalOpen(false);
+            else deferProfile();
+          }}
         />
       )}
       <main className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8">
@@ -112,7 +128,19 @@ export default function GeneratePage() {
           {/* LEFT COLUMN: free-text input and generation trigger */}
           <section className="flex flex-col gap-4 lg:col-span-5">
             <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-              <h1 className="text-headline-lg tracking-tight text-text">Tu experiencia profesional</h1>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h1 className="text-headline-lg tracking-tight text-text">Tu experiencia profesional</h1>
+                {profileStatus === "saved" && (
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileModalOpen(true)}
+                    data-testid="profile-edit"
+                    className="focus-ring rounded-md border border-border px-3 py-1.5 text-body-sm font-semibold text-text-muted hover:bg-subtle"
+                  >
+                    Editar perfil
+                  </button>
+                )}
+              </div>
               <p className="mt-1 text-caption-xs text-text-muted">
                 Pega tu biografía o historia laboral en texto libre; la convertimos en un CV estructurado.
               </p>

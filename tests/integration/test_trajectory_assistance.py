@@ -75,7 +75,7 @@ async def test_turns_resend_source_and_confirmed_answers_in_order() -> None:
         ("Coordiné un proyecto.", "", "Aumenté el ingreso 40%"),
     ],
 )
-async def test_ready_proposal_evidence_must_be_literal_user_input(
+async def test_unverified_proposal_requests_clarification_instead_of_failing(
     source_text: str,
     answer: str,
     evidence: str,
@@ -102,10 +102,71 @@ async def test_ready_proposal_evidence_must_be_literal_user_input(
     )
     service = TrajectoryAssistanceService(provider=provider)
 
-    with pytest.raises(InvalidAssistanceResultError):
-        await service.assist("user-1",
-            AssistanceTurnRequest.model_validate({"sourceText": source_text, "answers": answers})
-        )
+    result = await service.assist(
+        "user-1",
+        AssistanceTurnRequest.model_validate({"sourceText": source_text, "answers": answers}),
+    )
+
+    assert result.state == "needs_input"
+    assert "No pude verificar" in result.questions[0].text
+
+
+@pytest.mark.asyncio
+async def test_unknown_answer_stops_repeated_follow_up_questions() -> None:
+    provider = FakeAssistanceProvider(
+        results=[
+            {"state": "needs_input", "questions": [{"id": "q2", "text": "¿Qué resultado obtuviste?"}]}
+        ]
+    )
+    service = TrajectoryAssistanceService(provider=provider)
+    request = AssistanceTurnRequest.model_validate(
+        {
+            "sourceText": "Coordiné una migración.",
+            "answers": [
+                {"questionId": "q1", "question": "¿Qué hiciste?", "answer": "No conozco ese dato."}
+            ],
+        }
+    )
+
+    result = await service.assist("user-1", request)
+
+    assert result.state == "ready"
+    assert result.proposals == []
+
+
+@pytest.mark.asyncio
+async def test_unknown_answer_filters_proposals_without_confirmed_evidence() -> None:
+    provider = FakeAssistanceProvider(
+        results=[
+            {
+                "state": "ready",
+                "proposals": [
+                    {
+                        "proposalId": "p1",
+                        "kind": "achievement",
+                        "text": "Aumenté los ingresos un 40%.",
+                        "competencyType": None,
+                        "evidence": ["Aumenté los ingresos un 40%"],
+                    }
+                ],
+                "developmentRecommendations": [],
+            }
+        ]
+    )
+    service = TrajectoryAssistanceService(provider=provider)
+    request = AssistanceTurnRequest.model_validate(
+        {
+            "sourceText": "Coordiné una migración.",
+            "answers": [
+                {"questionId": "q1", "question": "¿Qué resultado?", "answer": "No conozco ese dato."}
+            ],
+        }
+    )
+
+    result = await service.assist("user-1", request)
+
+    assert result.state == "ready"
+    assert result.proposals == []
 
 
 @pytest.mark.asyncio
@@ -137,6 +198,37 @@ async def test_evidence_may_come_from_a_prior_user_answer() -> None:
                 "answers": [{"questionId": "q1", "question": "¿Qué resultado?", "answer": answer}],
             }
         )
+    )
+
+    assert result.state == "ready"
+
+
+@pytest.mark.asyncio
+async def test_evidence_matching_ignores_case_diacritics_and_repeated_spaces() -> None:
+    provider = FakeAssistanceProvider(
+        results=[
+            {
+                "state": "ready",
+                "proposals": [
+                    {
+                        "proposalId": "p1",
+                        "kind": "trajectory",
+                        "text": "Trabajé con Telefónica España.",
+                        "competencyType": None,
+                        "evidence": ["TELEFONICA   ESPANA"],
+                    }
+                ],
+                "developmentRecommendations": [],
+            }
+        ]
+    )
+    service = TrajectoryAssistanceService(provider=provider)
+
+    result = await service.assist(
+        "user-1",
+        AssistanceTurnRequest.model_validate(
+            {"sourceText": "Trabaje con Telefonica Espana.", "answers": []}
+        ),
     )
 
     assert result.state == "ready"

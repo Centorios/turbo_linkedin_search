@@ -1,6 +1,6 @@
 import re
 
-from pydantic import AnyHttpUrl, EmailStr, TypeAdapter, ValidationError, field_validator
+from pydantic import AnyHttpUrl, EmailStr, Field, TypeAdapter, ValidationError, field_validator
 
 from app.models.cv import StrictModel
 
@@ -17,6 +17,7 @@ class BasicProfile(StrictModel):
     location: str
     linkedin: str
     website: str
+    photoPath: str | None = Field(default=None, max_length=128)
 
     @field_validator("fullName")
     @classmethod

@@ -30,13 +30,6 @@ export function MinimalistaAts({ cv }: { cv: StructuredCv }) {
 
       <div className="h-px bg-border" />
 
-      {cv.summary && (
-        <section>
-          <SectionTitle>Resumen</SectionTitle>
-          <p className="mt-1.5 text-body-sm leading-relaxed text-text">{cv.summary}</p>
-        </section>
-      )}
-
       <section>
         <SectionTitle>Experiencia</SectionTitle>
         {cv.experience.length ? (

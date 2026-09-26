@@ -203,8 +203,13 @@ export function TrajectoryAssistant({
           <div className="mt-6 space-y-7">
             <section aria-labelledby="trajectory-proposals-heading">
               <h3 id="trajectory-proposals-heading" className="text-body-md font-semibold text-text">Propuestas con evidencia</h3>
-              <ul className="mt-3 space-y-4">
-                {result.proposals.map((proposal) => {
+              {result.proposals.length === 0 ? (
+                <p className="mt-3 text-body-sm text-text-muted">
+                  No hay propuestas adicionales basadas en información confirmada. Puedes continuar con los datos originales.
+                </p>
+              ) : (
+                <ul className="mt-3 space-y-4">
+                  {result.proposals.map((proposal) => {
                   const review = reviews[proposal.proposalId]?.status ?? "proposed";
                   const text = editedTexts[proposal.proposalId] ?? proposal.text;
                   return (
@@ -251,8 +256,9 @@ export function TrajectoryAssistant({
                       </div>
                     </li>
                   );
-                })}
-              </ul>
+                  })}
+                </ul>
+              )}
             </section>
 
             {result.developmentRecommendations.length > 0 && (

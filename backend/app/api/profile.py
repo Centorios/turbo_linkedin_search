@@ -24,7 +24,12 @@ async def get_profile(
     try:
         profile = repository.get_by_user(user_id)
     except Exception as exc:
-        logger.error("profile_read_failed", extra={"error_type": type(exc).__name__})
+        logger.error(
+            "profile_read_failed error_type=%s error_code=%s error_status=%s",
+            type(exc).__name__,
+            getattr(exc, "code", None),
+            getattr(exc, "status_code", None),
+        )
         raise _storage_error("profile_read_failed", "No se pudo cargar el perfil") from exc
     return BasicProfile.model_validate(profile) if profile is not None else None
 
@@ -38,7 +43,12 @@ async def save_profile(
     try:
         saved_profile = repository.upsert(user_id, payload.model_dump())
     except Exception as exc:
-        logger.error("profile_write_failed", extra={"error_type": type(exc).__name__})
+        logger.error(
+            "profile_write_failed error_type=%s error_code=%s error_status=%s",
+            type(exc).__name__,
+            getattr(exc, "code", None),
+            getattr(exc, "status_code", None),
+        )
         raise _storage_error("profile_write_failed", "No se pudo guardar el perfil") from exc
     return BasicProfile.model_validate(saved_profile)
 

@@ -5,6 +5,7 @@ export type BasicProfile = {
   location: string;
   linkedin: string;
   website: string;
+  photoPath?: string | null;
 };
 
 export type BasicProfileResponse = BasicProfile | null;

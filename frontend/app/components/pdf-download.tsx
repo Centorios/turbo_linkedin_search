@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { StructuredCv } from "../types/cv";
 import type { CvTemplate } from "./cv-preview";
 import { AlertIcon, DownloadIcon, SpinnerIcon } from "./icons";
+import { getProfilePhotoUrl } from "../lib/profile-photo-client";
 
 type DownloadStatus = "idle" | "downloading" | "error";
 
@@ -23,7 +24,12 @@ export function PdfDownload({ cv, template }: { cv: StructuredCv; template: CvTe
         import("@react-pdf/renderer"),
         import("../templates/cv-pdf-document"),
       ]);
-      const blob = await pdf(<CvPdfDocument cv={cv} template={template} />).toBlob();
+      let downloadableCv = cv;
+      if (template === "creative" && cv.personalInfo.photoPath) {
+        const photoUrl = await getProfilePhotoUrl(cv.personalInfo.photoPath);
+        downloadableCv = { ...cv, personalInfo: { ...cv.personalInfo, photoUrl } };
+      }
+      const blob = await pdf(<CvPdfDocument cv={downloadableCv} template={template} />).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;

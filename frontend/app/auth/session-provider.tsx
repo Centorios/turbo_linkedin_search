@@ -17,7 +17,7 @@ type SessionContextValue = {
   profileError: string | null;
   saveError: string | null;
   refreshProfile: () => Promise<void>;
-  saveProfile: (profile: BasicProfile) => Promise<void>;
+  saveProfile: (profile: BasicProfile) => Promise<boolean>;
   deferProfile: () => void;
 };
 
@@ -29,7 +29,7 @@ const SessionContext = createContext<SessionContextValue>({
   profileError: null,
   saveError: null,
   refreshProfile: async () => {},
-  saveProfile: async () => {},
+  saveProfile: async () => false,
   deferProfile: () => {},
 });
 
@@ -90,16 +90,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function handleSaveProfile(nextProfile: BasicProfile) {
+  async function handleSaveProfile(nextProfile: BasicProfile): Promise<boolean> {
     setProfileStatus("saving");
     setSaveError(null);
     try {
       const savedProfile = await saveBasicProfile(nextProfile);
       setProfile(savedProfile);
       setProfileStatus("saved");
+      return true;
     } catch (error) {
       setProfileStatus("missing");
       setSaveError(error instanceof Error ? error.message : "No se pudo guardar el perfil");
+      return false;
     }
   }
 

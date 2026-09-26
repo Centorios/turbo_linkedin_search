@@ -15,6 +15,7 @@ VALID_CV = {
         "location": "Madrid",
         "linkedin": "",
         "website": "",
+        "photoPath": None,
     },
     "summary": "Product designer",
     "experience": [],

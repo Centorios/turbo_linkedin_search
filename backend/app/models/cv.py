@@ -22,6 +22,7 @@ class PersonalInfo(StrictModel):
     location: str
     linkedin: str
     website: str
+    photoPath: str | None = None
 
     @field_validator("email")
     @classmethod
