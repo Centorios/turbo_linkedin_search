@@ -18,6 +18,14 @@ if not exist "%ROOT%frontend\node_modules\.bin\next.cmd" (
   echo Frontend dependencies are missing. Run npm ci inside frontend.
   set "MISSING=1"
 )
+if not exist "%ROOT%frontend\node_modules\@tailwindcss\postcss\package.json" (
+  echo Tailwind PostCSS is missing. Run npm ci inside frontend.
+  set "MISSING=1"
+)
+if not exist "%ROOT%frontend\node_modules\tailwindcss\package.json" (
+  echo Tailwind CSS is missing. Run npm ci inside frontend.
+  set "MISSING=1"
+)
 
 call :find_python
 if errorlevel 1 (
