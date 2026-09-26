@@ -67,3 +67,15 @@ Las pruebas E2E usan Chromium únicamente. `E2E_EMAIL` debe ser una cuenta exist
 confirmada; `E2E_SIGNUP_EMAIL` debe ser una cuenta nueva si se prueba el registro.
 
 No se deben copiar secretos reales a los archivos `.env.example` ni al cliente.
+
+## Despliegue del frontend en Vercel
+
+En **Settings → Build and Deployment → Root Directory**, configurar `frontend`.
+El `package.json` y `vercel.json` del proyecto Next.js están en esa carpeta.
+Usar los comandos de instalación y build detectados por Vercel; no configurar
+`npm ci --prefix frontend`, `npm run build --prefix frontend` ni un Output Directory
+manual cuando `frontend` ya es la raíz.
+
+Definir en Vercel `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y
+`NEXT_PUBLIC_BACKEND_URL` con la URL pública del backend. Luego iniciar un nuevo
+despliegue: los cambios de Root Directory se aplican a partir del siguiente build.
