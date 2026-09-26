@@ -19,10 +19,7 @@ export async function requestTrajectoryAssistance(
     throw new Error("La sesión ha expirado. Vuelve a iniciar sesión.");
   }
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-  if (!backendUrl) {
-    throw new Error("La URL del backend no está configurada");
-  }
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "") ?? "";
 
   const response = await fetch(`${backendUrl}/api/trajectory-assistance/turn`, {
     method: "POST",

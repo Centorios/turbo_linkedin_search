@@ -6,7 +6,7 @@ secret values, CV content, access tokens, or connection strings into the review 
 ## Client Bundles
 
 - [ ] Build the frontend and inspect emitted browser assets for backend-only configuration, including `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, and `AZURE_OPENAI_API_KEY`.
-- [ ] Confirm the deployed frontend has only `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_BACKEND_URL` configured.
+- [ ] Confirm the deployed frontend has only public `NEXT_PUBLIC_*` values; `NEXT_PUBLIC_BACKEND_URL` is optional when Vercel Services serves `/api/*` on the same domain.
 - [ ] Confirm no access token or professional CV content is written to browser logs or persistent browser storage outside the Supabase-managed session.
 
 ## API Responses

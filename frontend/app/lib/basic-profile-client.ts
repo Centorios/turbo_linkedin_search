@@ -25,10 +25,7 @@ async function requestProfile(method: "GET" | "PUT", profile?: BasicProfile): Pr
     throw new Error("La sesión ha expirado");
   }
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-  if (!backendUrl) {
-    throw new Error("La URL del backend no está configurada");
-  }
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "") ?? "";
 
   const response = await fetch(`${backendUrl}/api/profile`, {
     method,

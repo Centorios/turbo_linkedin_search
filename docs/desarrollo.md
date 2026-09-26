@@ -68,14 +68,19 @@ confirmada; `E2E_SIGNUP_EMAIL` debe ser una cuenta nueva si se prueba el registr
 
 No se deben copiar secretos reales a los archivos `.env.example` ni al cliente.
 
-## Despliegue del frontend en Vercel
+## Despliegue conjunto en Vercel Services
 
-En **Settings → Build and Deployment → Root Directory**, configurar `frontend`.
-El `package.json` y `vercel.json` del proyecto Next.js están en esa carpeta.
-Usar los comandos de instalación y build detectados por Vercel; no configurar
-`npm ci --prefix frontend`, `npm run build --prefix frontend` ni un Output Directory
-manual cuando `frontend` ya es la raíz.
+En **Settings → Build and Deployment**, seleccionar **Services** como framework y
+dejar **Root Directory** en la raíz del repositorio. `vercel.json` define el
+frontend Next.js en `frontend/` y el backend FastAPI en `backend/`. Las rutas
+`/api/*` y `/health` llegan al backend; el resto llega al frontend. No configurar
+comandos de instalación, build ni Output Directory manuales para el proyecto.
 
-Definir en Vercel `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` y
-`NEXT_PUBLIC_BACKEND_URL` con la URL pública del backend. Luego iniciar un nuevo
-despliegue: los cambios de Root Directory se aplican a partir del siguiente build.
+Definir en Vercel `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+para el navegador. El backend requiere `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `AZURE_OPENAI_ENDPOINT`,
+`AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_API_VERSION` y `AZURE_OPENAI_DEPLOYMENT`.
+No subir secretos al repositorio. Sin `NEXT_PUBLIC_BACKEND_URL`, el frontend
+llama a `/api/*` en el mismo dominio; esa variable solo hace falta si se usa un
+backend externo, como el servicio de Render. Tras cambiar la configuración,
+iniciar un nuevo despliegue.
