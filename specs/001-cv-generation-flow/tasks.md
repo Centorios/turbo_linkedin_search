@@ -96,11 +96,11 @@ description: "Task list for End-to-End CV Generation Flow"
 
 **Independent Test**: Use a valid CV fixture, switch between both templates, download once, and confirm the PDF action remains safe during an in-progress download.
 
-- [ ] T042 [P] [US3] Create the shared PDF document mapping for the validated CV contract in `frontend/app/templates/cv-pdf-document.tsx`.
-- [ ] T043 [P] [US3] Implement browser-side PDF generation with `@react-pdf/renderer` and a disabled/in-progress state in `frontend/app/components/pdf-download.tsx`.
-- [ ] T044 [US3] Add the download action to the generation view and preserve the selected template and validated data in `frontend/app/generate/page.tsx`.
-- [ ] T045 [P] [US3] Add browser tests for PDF download, minimal content, both templates and duplicate-click protection in `tests/e2e/download-pdf.spec.ts`.
-- [ ] T046 [P] [US3] Add Vitest PDF document tests covering empty arrays, `""` fields, `MM-YYYY`/`YYYY` dates and certifications in `frontend/tests/cv-pdf-document.test.tsx`.
+- [X] T042 [P] [US3] Create the shared PDF document mapping for the validated CV contract in `frontend/app/templates/cv-pdf-document.tsx`.
+- [X] T043 [P] [US3] Implement browser-side PDF generation with `@react-pdf/renderer` and a disabled/in-progress state in `frontend/app/components/pdf-download.tsx`.
+- [X] T044 [US3] Add the download action to the generation view and preserve the selected template and validated data in `frontend/app/generate/page.tsx`.
+- [X] T045 [P] [US3] Add browser tests for PDF download, minimal content, both templates and duplicate-click protection in `tests/e2e/download-pdf.spec.ts`.
+- [X] T046 [P] [US3] Add Vitest PDF document tests covering empty arrays, `""` fields, `MM-YYYY`/`YYYY` dates and certifications in `frontend/tests/cv-pdf-document.test.tsx`.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
