@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.generate_cv import router as generate_cv_router
+from app.core.logging import RequestLoggingMiddleware
 from app.core.settings import get_settings
 
 
@@ -15,6 +16,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RequestLoggingMiddleware)
     app.include_router(generate_cv_router)
 
     @app.get("/health")
