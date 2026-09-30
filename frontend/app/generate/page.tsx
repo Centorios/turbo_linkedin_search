@@ -106,7 +106,7 @@ export default function GeneratePage() {
   }
 
   return (
-    <div data-testid="protected-content" className="min-h-screen bg-canvas">
+    <div data-testid="protected-content" className="app-canvas min-h-screen">
       <AppHeader />
       {(profileStatus === "missing" || profileStatus === "saving" || isProfileModalOpen) && session && (
         <BasicProfileModal
@@ -124,10 +124,20 @@ export default function GeneratePage() {
         />
       )}
       <main className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8">
+        <section data-testid="workspace-introduction" className="brand-panel mb-7 rounded-2xl px-6 py-7 sm:px-8">
+          <div className="relative flex flex-wrap items-center justify-between gap-5">
+            <div>
+              <p className="text-label-xs uppercase tracking-widest text-emerald-200">Tu espacio profesional</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Dale impulso a tu próxima oportunidad.</h2>
+              <p className="mt-2 text-body-sm text-indigo-100">Cuenta tu experiencia, revisa el resultado y crea un CV que hable por ti.</p>
+            </div>
+            <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-body-sm font-semibold text-emerald-200">ATS + diseño visual</span>
+          </div>
+        </section>
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
           {/* LEFT COLUMN: free-text input and generation trigger */}
           <section className="flex flex-col gap-4 lg:col-span-5">
-            <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+            <div className="workspace-card rounded-2xl border border-border bg-surface p-6 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h1 className="text-headline-lg tracking-tight text-text">Tu experiencia profesional</h1>
                 {profileStatus === "saved" && (
@@ -145,7 +155,7 @@ export default function GeneratePage() {
                 Pega tu biografía o historia laboral en texto libre; la convertimos en un CV estructurado.
               </p>
 
-              <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-subtle p-3">
+              <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
                 <SparkleIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <p className="text-caption-xs leading-relaxed text-text-muted">
                   Cuanta más información incluyas (años, empresas, logros con números, formación e idiomas), mejor será el
@@ -229,12 +239,12 @@ export default function GeneratePage() {
                   <TemplateSelector value={template} onChange={setTemplate} />
                   <PdfDownload cv={cv} template={template} />
                 </div>
-                <div className="rounded-xl bg-subtle p-4 sm:p-6">
+                <div className="preview-stage rounded-2xl p-4 sm:p-6">
                   <CvPreview cv={cv} template={template} />
                 </div>
               </>
             ) : isGenerating ? (
-              <div role="status" className="rounded-xl bg-subtle p-4 sm:p-6">
+              <div role="status" className="preview-stage rounded-2xl p-4 sm:p-6">
                 <p className="sr-only">Generando tu CV...</p>
                 <div
                   aria-hidden="true"
@@ -251,8 +261,8 @@ export default function GeneratePage() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface px-8 py-16 text-center">
-                <DocumentIcon className="h-8 w-8 text-text-faint" />
+              <div className="preview-stage flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-2xl px-8 py-16 text-center">
+                <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white bg-white/75 shadow-sm"><DocumentIcon className="h-9 w-9 text-primary" /></div>
                 <p className="text-body-sm font-semibold text-text">Tu CV aparecerá aquí</p>
                 <p className="max-w-xs text-caption-xs text-text-muted">
                   Escribe tu experiencia a la izquierda y pulsa &ldquo;Generar CV&rdquo; para ver la vista previa.

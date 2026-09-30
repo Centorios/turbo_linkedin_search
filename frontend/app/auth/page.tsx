@@ -65,8 +65,22 @@ function AuthPageContent() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-canvas px-4 py-10">
-      <div className="flex w-full max-w-sm flex-col items-center">
+    <main className="app-canvas flex min-h-screen items-center justify-center px-4 py-8 sm:px-8">
+      <div className="grid w-full max-w-5xl items-center gap-8 lg:grid-cols-2 lg:gap-16">
+        <section data-testid="auth-introduction" className="brand-panel rounded-3xl p-7 sm:p-10 lg:py-16">
+          <div className="relative">
+            <span className="inline-flex rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-label-xs text-emerald-200">TU PRÓXIMO CAPÍTULO</span>
+            <h2 className="mt-6 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">Tu experiencia merece<br />un gran currículum.</h2>
+            <p className="mt-5 max-w-sm text-body-base leading-relaxed text-indigo-100">Dale forma a tu historia profesional. La IA te ayuda a convertir lo que sabes hacer en un CV claro, listo para compartir.</p>
+            <ol className="mt-8 space-y-4 text-body-sm text-indigo-100">
+              {["Cuenta tu trayectoria", "Revisa y elige tu estilo", "Descarga tu CV en PDF"].map((step, index) => (
+                <li key={step} className="flex items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 font-semibold text-emerald-200">0{index + 1}</span>{step}</li>
+              ))}
+            </ol>
+            <p className="mt-10 border-t border-white/15 pt-5 text-caption-xs text-indigo-200">Tu historia. Tu estilo. Tu siguiente oportunidad.</p>
+          </div>
+        </section>
+      <div className="mx-auto flex w-full max-w-sm flex-col items-center">
         <BrandLogo className="mb-4 h-9 w-auto" />
         <h1 className="text-headline-2xl text-center tracking-tight text-text">Bienvenido a CV8</h1>
         <p className="mt-1.5 text-center text-body-sm text-text-muted">Accede para generar tu currículum con IA</p>
@@ -102,7 +116,7 @@ function AuthPageContent() {
           </button>
         </div>
 
-        <div className="mt-4 w-full rounded-xl border border-border bg-surface p-5 shadow-sm">
+        <div className="workspace-card mt-4 w-full rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
             <div>
               <label htmlFor="auth-email" className="mb-1.5 block text-body-sm font-semibold text-text">
@@ -184,6 +198,7 @@ function AuthPageContent() {
             </button>
           </form>
         </div>
+      </div>
       </div>
     </main>
   );

@@ -103,7 +103,7 @@ async function expectPdfMatchesPreview(page: Page, path: string, template: "ats"
     .toLocaleLowerCase();
   const pdfText = await readPdfText(path);
   const entries = template === "ats"
-    ? ["Ana García", "ana@example.com", "Product designer", "Senior Designer", "Acme", "Lideró el rediseño", "Diseño Gráfico", "Figma", "Comunicación"]
+    ? ["Ana García", "ana@example.com", "Senior Designer", "Acme", "Lideró el rediseño", "Diseño Gráfico", "Figma", "Comunicación"]
     : ["Perfil profesional", "Ana García", "ana@example.com", "Product designer", "Trayectoria", "Senior Designer", "Acme", "Lideró el rediseño", "Competencias", "Figma", "Comunicación", "Formación", "Diseño Gráfico"];
 
   expectOrderedContent(previewText, entries);
