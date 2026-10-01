@@ -16,4 +16,3 @@
 
 ## Dependencies and Parallel Opportunities
 T001 → T002 → T003 → T004 → T005. No beneficio de paralelismo: geometría compartida. MVP US1; entrega ambas historias.
-
