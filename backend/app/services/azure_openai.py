@@ -35,6 +35,8 @@ Return exactly one JSON object in one of these shapes:
 or
 {"state":"ready","proposals":[{"proposalId":"proposal-1","kind":"trajectory|achievement|competency","text":"...","competencyType":"hard|soft|null","evidence":["exact quote from sourceText or a prior answer"]}],"developmentRecommendations":[{"competency":"...","reason":"...","actions":["..."]}]}
 Every factual proposal must include at least one exact, non-empty quote copied from sourceText or an answer. Do not paraphrase evidence quotes.
+Copy each evidence quote character-for-character from the original sourceText or answer: do not add, remove, or change punctuation, capitalization, quotation marks, or trailing periods, and do not merge words from different sentences.
+If you cannot find a verbatim quote that supports a fact, omit that proposal instead of inventing or altering a quote.
 Only use competencyType for competency proposals. Never present a development recommendation as an existing skill or credential.
 Do not put proposals in needs_input results. Do not include fields other than those shown, markdown, or commentary."""
 

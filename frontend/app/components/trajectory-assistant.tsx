@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AlertIcon, CheckCircleIcon, SpinnerIcon } from "./icons";
 import { requestTrajectoryAssistance } from "../lib/trajectory-assistance-client";
 import type {
@@ -41,26 +41,33 @@ export function TrajectoryAssistant({
   const [editedTexts, setEditedTexts] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const latestRequestIdRef = useRef(0);
+  const hasRequestedInitialTurnRef = useRef(false);
 
   async function requestTurn(nextAnswers: FollowUpAnswer[]) {
+    const requestId = ++latestRequestIdRef.current;
     setIsLoading(true);
     setError(null);
     setRetryAnswers(nextAnswers);
     try {
       const request: AssistanceTurnRequest = { sourceText, answers: nextAnswers };
       const nextResult = await requestTrajectoryAssistance(request);
+      if (requestId !== latestRequestIdRef.current) return;
       setAnswers(nextAnswers);
       setRetryAnswers(null);
       setResult(nextResult);
       setAnswerValues({});
     } catch (turnError) {
+      if (requestId !== latestRequestIdRef.current) return;
       setError(turnError instanceof Error ? turnError.message : "No se pudo completar la asistencia");
     } finally {
-      setIsLoading(false);
+      if (requestId === latestRequestIdRef.current) setIsLoading(false);
     }
   }
 
   useEffect(() => {
+    if (hasRequestedInitialTurnRef.current) return;
+    hasRequestedInitialTurnRef.current = true;
     void requestTurn([]);
   }, []);
 

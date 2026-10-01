@@ -1,4 +1,5 @@
 import logging
+import re
 import unicodedata
 
 from pydantic import TypeAdapter, ValidationError
@@ -20,15 +21,20 @@ class InvalidAssistanceResultError(Exception):
 _ASSISTANCE_RESULT_ADAPTER = TypeAdapter(AssistanceResult)
 logger = logging.getLogger(__name__)
 
+_NON_WORD_PATTERN = re.compile(r"[^\w\s]", re.UNICODE)
+_UNKNOWN_ANSWER_TEXTS = ("No conozco ese dato.", "No conozco esos datos.")
+
 
 def _normalize_evidence(value: str) -> str:
     decomposed = unicodedata.normalize("NFKD", value.casefold())
     without_diacritics = "".join(char for char in decomposed if not unicodedata.combining(char))
-    return " ".join(without_diacritics.split())
+    # Strip punctuation too, so minor formatting differences from the model don't break citation matching.
+    without_punctuation = _NON_WORD_PATTERN.sub(" ", without_diacritics)
+    return " ".join(without_punctuation.split())
 
 
 def _has_unknown_answer(request: AssistanceTurnRequest) -> bool:
-    unknown_answers = {"no conozco ese dato.", "no conozco esos datos."}
+    unknown_answers = {_normalize_evidence(text) for text in _UNKNOWN_ANSWER_TEXTS}
     return any(
         _normalize_evidence(answer.answer) in unknown_answers
         for answer in request.answers

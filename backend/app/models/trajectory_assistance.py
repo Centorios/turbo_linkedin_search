@@ -43,6 +43,17 @@ class TrajectoryProposal(StrictModel):
     competencyType: Literal["hard", "soft"] | None
     evidence: list[NonBlankString] = Field(min_length=1)
 
+    @field_validator("competencyType", mode="before")
+    @classmethod
+    def normalize_competency_type(cls, value: object) -> object:
+        # The model sometimes emits case/whitespace variants or placeholder strings instead of a literal null.
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"", "none", "null", "n/a"}:
+                return None
+            return normalized
+        return value
+
     @model_validator(mode="after")
     def validate_competency_type(self) -> "TrajectoryProposal":
         if self.kind == "competency" and self.competencyType is None:
