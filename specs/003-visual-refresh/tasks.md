@@ -23,4 +23,3 @@
 
 ## Dependencies and Parallel Opportunities
 T001 → T002 → US1 → US2 → T007. T004 y T006 afectan archivos separados y podrían ejecutarse en paralelo tras T002; ejecución secuencial para simplificar. MVP: US1; entregar ambas historias en esta PR.
-

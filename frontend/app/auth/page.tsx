@@ -117,7 +117,7 @@ function AuthPageContent() {
         </div>
 
         <div className="workspace-card mt-4 w-full rounded-2xl border border-border bg-surface p-6 shadow-sm">
-          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+          <form method="post" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
             <div>
               <label htmlFor="auth-email" className="mb-1.5 block text-body-sm font-semibold text-text">
                 Correo electrónico

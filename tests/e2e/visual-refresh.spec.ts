@@ -19,3 +19,25 @@ for (const width of [375, 768, 1440]) {
     expect(await page.getByTestId("auth-email").evaluate((element) => getComputedStyle(element).outlineStyle)).toBe("solid");
   });
 }
+
+test.describe("Formulario sin JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+  test("mantiene credenciales fuera de la URL", async ({ page }) => {
+    let posted = false;
+    await page.route("**/auth", (route) => {
+      if (route.request().method() === "POST") {
+        posted = true;
+        return route.fulfill({ status: 200, contentType: "text/html", body: "<p>JavaScript requerido</p>" });
+      }
+      return route.continue();
+    });
+    await page.goto("/auth");
+    await page.getByTestId("auth-email").fill("ana@example.test");
+    await page.getByTestId("auth-password").fill("synthetic-password");
+    await page.getByTestId("auth-submit").click();
+    await expect(page.getByText("JavaScript requerido")).toBeVisible();
+    expect(posted).toBe(true);
+    expect(page.url()).not.toContain("password=");
+    expect(page.url()).not.toContain("email=");
+  });
+});
