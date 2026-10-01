@@ -26,4 +26,3 @@
 
 ## Dependencies and Parallel Opportunities
 T001 → T002 → US1 → US3 → US2 → T013. US3 comparte API/UI y se ejecuta secuencial. T003 y T006 serían paralelizables en archivos separados tras T002. MVP lista propia US1; entregar las tres historias con privacidad antes de publicación.
-
