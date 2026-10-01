@@ -68,6 +68,26 @@ confirmada; `E2E_SIGNUP_EMAIL` debe ser una cuenta nueva si se prueba el registr
 
 No se deben copiar secretos reales a los archivos `.env.example` ni al cliente.
 
+## Historial de CVs
+
+Cada generación exitosa se guarda automáticamente en `resumes`. Desde la cabecera,
+**Historial** (`/history`) permite recorrer las versiones de la cuenta, revisar el
+contenido original y descargarlo como ATS o visual. Cambiar el perfil actual no
+reescribe las versiones antiguas. Los intentos fallidos no aparecen como documentos.
+
+FastAPI expone `GET /api/resumes?offset=0&limit=20` y `GET /api/resumes/{id}`.
+Ambos validan el bearer de Supabase y filtran por el dueño, incluso usando el cliente
+admin. El detalle ajeno responde igual que uno inexistente. Las lecturas validan el
+JSON almacenado sin llamar a Azure. No hace falta una migración adicional si ya está
+aplicada `001_create_resumes.sql`.
+
+Las fotos antiguas pueden haber sido eliminadas; en ese caso se mantiene el texto y
+la descarga funciona sin foto. La UI descarta solicitudes pendientes al cambiar de
+cuenta y los datos no se guardan en almacenamiento del navegador.
+
+Pruebas específicas: `tests/integration/test_resume_history.py`,
+`frontend/tests/resume-history.test.tsx` y `tests/e2e/resume-history.spec.ts`.
+
 ## Despliegue conjunto en Vercel Services
 
 En **Settings → Build and Deployment**, seleccionar **Services** como framework y

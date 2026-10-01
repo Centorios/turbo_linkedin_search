@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.generate_cv import router as generate_cv_router
 from app.api.profile import router as profile_router
+from app.api.resumes import router as resumes_router
 from app.api.trajectory_assistance import router as trajectory_assistance_router
 from app.core.logging import RequestLoggingMiddleware
 from app.core.settings import get_settings
@@ -24,6 +25,7 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestLoggingMiddleware)
     app.include_router(generate_cv_router)
     app.include_router(profile_router)
+    app.include_router(resumes_router)
     app.include_router(trajectory_assistance_router)
 
     @app.exception_handler(RequestValidationError)

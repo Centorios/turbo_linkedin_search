@@ -140,7 +140,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [session?.user.id]);
 
   useEffect(() => {
-    if (!isLoading && !session && pathname.startsWith("/generate")) {
+    if (!isLoading && !session && (pathname.startsWith("/generate") || pathname.startsWith("/history"))) {
       router.replace("/auth?reason=session-expired");
     }
   }, [isLoading, pathname, router, session]);
