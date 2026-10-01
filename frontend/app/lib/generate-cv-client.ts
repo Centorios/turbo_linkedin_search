@@ -1,5 +1,6 @@
 import type { StructuredCv } from "../types/cv";
 import { createSupabaseBrowserClient } from "./supabase";
+import { getBackendUrl } from "./backend-url";
 
 export async function generateCv(text: string, requestId = crypto.randomUUID()): Promise<StructuredCv> {
   const supabase = createSupabaseBrowserClient();
@@ -11,7 +12,7 @@ export async function generateCv(text: string, requestId = crypto.randomUUID()):
     throw new Error("La sesión ha expirado");
   }
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "") ?? "";
+  const backendUrl = getBackendUrl();
 
   const response = await fetch(`${backendUrl}/api/generate-cv`, {
     method: "POST",

@@ -1,4 +1,5 @@
 import { createSupabaseBrowserClient } from "./supabase";
+import { getBackendUrl } from "./backend-url";
 import type { ResumeDetail, ResumeHistoryPage } from "../types/resume-history";
 
 export function listResumes(userId: string, offset: number, signal: AbortSignal): Promise<ResumeHistoryPage> {
@@ -15,7 +16,7 @@ async function requestHistory<T>(userId: string, path: string, signal: AbortSign
   signal.throwIfAborted();
   if (!session?.access_token) throw new Error("La sesión ha expirado. Vuelve a iniciar sesión.");
   if (session.user.id !== userId) throw new DOMException("La cuenta cambió", "AbortError");
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "") ?? "";
+  const backendUrl = getBackendUrl();
   let response: Response;
   try {
     response = await fetch(`${backendUrl}${path}`, { headers: { Authorization: `Bearer ${session.access_token}` }, signal, cache: "no-store" });

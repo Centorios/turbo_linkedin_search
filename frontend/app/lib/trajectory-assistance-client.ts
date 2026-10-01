@@ -1,4 +1,5 @@
 import { createSupabaseBrowserClient } from "./supabase";
+import { getBackendUrl } from "./backend-url";
 import type { AssistanceResult, AssistanceTurnRequest } from "../types/trajectory-assistance";
 
 type AssistanceErrorResponse = {
@@ -19,7 +20,7 @@ export async function requestTrajectoryAssistance(
     throw new Error("La sesión ha expirado. Vuelve a iniciar sesión.");
   }
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "") ?? "";
+  const backendUrl = getBackendUrl();
 
   const response = await fetch(`${backendUrl}/api/trajectory-assistance/turn`, {
     method: "POST",
