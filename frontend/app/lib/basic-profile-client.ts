@@ -1,5 +1,6 @@
 import type { BasicProfile, BasicProfileResponse } from "../types/profile";
 import { createSupabaseBrowserClient } from "./supabase";
+import { getBackendUrl } from "./backend-url";
 
 type ProfileErrorResponse = {
   detail?: {
@@ -33,7 +34,7 @@ async function requestProfile(method: "GET" | "PUT", profile?: BasicProfile): Pr
     throw new Error("La sesión ha expirado");
   }
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "") ?? "";
+  const backendUrl = getBackendUrl();
 
   let response: Response;
   try {

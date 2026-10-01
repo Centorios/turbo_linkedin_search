@@ -104,3 +104,11 @@ No subir secretos al repositorio. Sin `NEXT_PUBLIC_BACKEND_URL`, el frontend
 llama a `/api/*` en el mismo dominio; esa variable solo hace falta si se usa un
 backend externo, como el servicio de Render. Tras cambiar la configuración,
 iniciar un nuevo despliegue.
+
+No copiar la URL local `http://localhost:8000` o `http://127.0.0.1:8000` a
+las variables de producción. Con Vercel Services, dejar
+`NEXT_PUBLIC_BACKEND_URL` vacía u omitirla. El cliente descarta una URL de
+loopback cuando la página está en un dominio remoto y usa `/api/*` del mismo
+dominio para perfil, generación, asistencia e historial. Esto evita consultar
+el equipo del visitante. Las URLs de backends externos siguen siendo válidas;
+en desarrollo local se conserva la configuración de localhost.
