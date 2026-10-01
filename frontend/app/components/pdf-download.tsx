@@ -26,8 +26,13 @@ export function PdfDownload({ cv, template }: { cv: StructuredCv; template: CvTe
       ]);
       let downloadableCv = cv;
       if (template === "creative" && cv.personalInfo.photoPath) {
-        const photoUrl = await getProfilePhotoUrl(cv.personalInfo.photoPath);
-        downloadableCv = { ...cv, personalInfo: { ...cv.personalInfo, photoUrl } };
+        try {
+          const photoUrl = await getProfilePhotoUrl(cv.personalInfo.photoPath);
+          downloadableCv = { ...cv, personalInfo: { ...cv.personalInfo, photoUrl } };
+        } catch {
+          // Historical photos can be removed; the document remains exportable.
+          downloadableCv = { ...cv, personalInfo: { ...cv.personalInfo, photoUrl: null } };
+        }
       }
       const blob = await pdf(<CvPdfDocument cv={downloadableCv} template={template} />).toBlob();
       const url = URL.createObjectURL(blob);
