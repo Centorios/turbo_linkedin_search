@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     azure_openai_api_key: str
     azure_openai_api_version: str
     azure_openai_deployment: str
+    jooble_ar_api_key: str = ""
 
 
 @lru_cache

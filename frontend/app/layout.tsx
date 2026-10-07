@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swa
 
 export const metadata: Metadata = {
   title: "CV8",
-  description: "Generador de CV profesional",
+  description: "Generador de CV profesional y búsqueda de empleos en Argentina",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

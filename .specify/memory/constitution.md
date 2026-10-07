@@ -1,7 +1,7 @@
 <!--
 Sync Impact Report
-- Version change: 1.1.0 -> 1.1.1
-- Modified principles: IV. Seguridad y aislamiento de datos; Technology and Scope
+- Version change: 1.1.1 -> 1.2.0
+- Modified principles: I. Etapas incrementales; IV. Seguridad y aislamiento de datos; V. Simplicidad verificable; Technology and Scope
 - Added sections: ninguna
 - Removed sections: ninguna sección sustantiva previa
 - Follow-up TODOs: confirmar RATIFICATION_DATE
@@ -11,11 +11,13 @@ Sync Impact Report
 
 ## Core Principles
 
-### I. MVP enfocado y alcance explícito
-La Etapa 1 MUST centrarse en transformar información profesional no estructurada en un CV
-estructurado, revisable y exportable a PDF. Scraping, Apify, Celery, Redis, `pgvector`,
-embeddings y cualquier funcionalidad de matching de la Etapa 2 quedan fuera de esta etapa.
-El alcance explícito evita complejidad prematura y mantiene verificable el objetivo del MVP.
+### I. Etapas incrementales y alcance explícito
+La Etapa 1 MUST conservar el flujo de transformación de información profesional no estructurada
+en un CV estructurado, revisable y exportable a PDF. La Etapa 2 MAY avanzar en entregas
+independientes con contratos y criterios de aceptación propios. La primera entrega de búsqueda
+laboral MUST usar CVs validados y una fuente de ofertas autorizada; no implica por sí misma
+scraping, Apify, Celery, Redis, `pgvector` ni embeddings. Cada entrega MUST declarar qué
+capacidades quedan pendientes para evitar representar búsqueda textual como matching semántico.
 
 ### II. Contratos estructurados y validación en los límites
 FastAPI MUST enviar a Azure OpenAI un System Prompt que exija exclusivamente JSON estructurado,
@@ -38,29 +40,34 @@ vinculado al usuario autenticado. Las claves maestras y privadas, incluida
 cualquier credencial privilegiada, MUST residir exclusivamente en variables de entorno del
 servidor o en un gestor de secretos, y MUST permanecer fuera del cliente, del repositorio, de las
 respuestas y de los logs. La clave pública `NEXT_PUBLIC_SUPABASE_ANON_KEY` y los tokens JWT de
-acceso de sesión de corta duración emitidos por Supabase Auth para el usuario autenticado MAY be
+acceso de sesión de corta duración emitidos por Supabase Auth para el usuario autenticado MAY estar
 expuestos en el frontend únicamente para autenticar peticiones contra el backend; no conceden
 permiso para sustituir la autorización del backend. Cada endpoint MUST validar el token, autorizar
 el acceso al recurso solicitado y mantener aislados los datos de usuarios diferentes. Estas reglas
 protegen la información profesional y distinguen configuración pública de secretos privilegiados.
+Las búsquedas externas MUST enviar solo términos y ubicación revisados por el usuario. El CV
+completo y los datos personales MUST permanecer en la aplicación.
 
 ### V. Simplicidad verificable y calidad de integración
 Cada cambio MUST preservar la separación entre frontend, FastAPI, Supabase y Azure OpenAI.
 Los flujos que cambien contratos, autenticación, persistencia o comunicación entre servicios
 MUST incluir pruebas de integración; las interfaces de usuario críticas MUST contar con pruebas
-de comportamiento. La complejidad adicional MUST justificarse por una necesidad del MVP y no
-por una capacidad futura no implementada.
+de comportamiento. La complejidad adicional MUST justificarse por una necesidad de la entrega
+actual y no por una capacidad futura no implementada.
 
 ## Technology and Scope
 
 La implementación MUST limitarse al stack aprobado: React/Next.js en el frontend, con
 `@react-pdf/renderer` para PDF; Python con FastAPI en el backend; PostgreSQL, Supabase Auth y
 Supabase para datos y persistencia operativa del MVP; Azure OpenAI Service para IA; Vercel para
-frontend, Render para backend y Supabase para base de datos y autenticación. El flujo principal
-MUST ser sincrónico:
+frontend, Render para backend y Supabase para base de datos y autenticación. Para la primera
+entrega de búsqueda laboral en Argentina se admite la API REST regional de Jooble desde el
+backend, con credencial en variable de entorno del servidor. El flujo de generación del CV
+MUST seguir siendo sincrónico:
 autenticación en Supabase, envío al endpoint `/api/generate-cv`, estructuración mediante Azure
-OpenAI, validación y persistencia en `resumes`, y devolución del JSON al frontend. No se deben
-introducir proveedores o servicios alternativos sin una enmienda de esta constitución.
+OpenAI, validación y persistencia en `resumes`, y devolución del JSON al frontend. Cualquier
+proveedor adicional MUST tener acceso autorizado, términos revisados y una enmienda de esta
+constitución antes de integrarse.
 
 ## Development Workflow and Quality Gates
 
@@ -83,4 +90,4 @@ comprobar el cumplimiento de esta constitución. La revisión de cumplimiento se
 feature y antes de cada release; cualquier excepción MUST quedar documentada y aprobada junto
 con su fecha de caducidad.
 
-**Version**: 1.1.1 | **Ratified**: TODO(RATIFICATION_DATE): confirmar fecha de adopción original | **Last Amended**: 2026-09-19
+**Version**: 1.2.0 | **Ratified**: TODO(RATIFICATION_DATE): confirmar fecha de adopción original | **Last Amended**: 2026-10-07

@@ -81,7 +81,7 @@ function AuthPageContent() {
           </div>
         </section>
       <div className="mx-auto flex w-full max-w-sm flex-col items-center">
-        <BrandLogo className="mb-4 h-9 w-auto" />
+        <BrandLogo className="mb-4 h-20 w-20" />
         <h1 className="text-headline-2xl text-center tracking-tight text-text">Bienvenido a CV8</h1>
         <p className="mt-1.5 text-center text-body-sm text-text-muted">Accede para generar tu currículum con IA</p>
 
