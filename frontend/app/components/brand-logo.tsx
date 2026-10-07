@@ -9,6 +9,8 @@ export function BrandLogo({ className }: { className?: string }) {
       height={64}
       className={className}
       data-testid="brand-logo"
+      // Vercel Services serves this asset directly; /_next/image returns 404.
+      unoptimized
       priority
     />
   );
