@@ -1,6 +1,6 @@
 # CV8 - Generador de CV con IA
 
-MVP para transformar texto profesional en un CV estructurado, validado y exportable a PDF.
+Aplicación para transformar texto profesional en un CV estructurado, validado y exportable a PDF, con una primera búsqueda de empleos desde ese CV.
 
 ## Estructura
 
@@ -88,6 +88,35 @@ cuenta y los datos no se guardan en almacenamiento del navegador.
 Pruebas específicas: `tests/integration/test_resume_history.py`,
 `frontend/tests/resume-history.test.tsx` y `tests/e2e/resume-history.spec.ts`.
 
+## Búsqueda de empleos en Argentina
+
+**Empleos** (`/jobs`) muestra los CVs guardados de la cuenta. Al elegir uno, el backend
+valida su propiedad y propone un puesto a partir de la experiencia; si falta, usa
+habilidades técnicas del CV. El usuario puede corregir los términos y la ubicación
+antes de pulsar **Buscar empleos**. Solo entonces se envían esos dos textos a la API
+regional de Jooble. El CV completo, el email y el token de sesión no se envían al
+proveedor. Las ofertas se abren en Jooble en una pestaña nueva.
+
+Solicitar una clave para la región Argentina en
+[Jooble Argentina](https://ar.jooble.org/api/about) y definir `JOOBLE_AR_API_KEY`
+en el entorno del **backend**, tanto local como en producción. No usar una variable
+`NEXT_PUBLIC_*` ni copiar la clave al repositorio. Sin clave, la búsqueda devuelve
+`503` y la interfaz explica que aún no está configurada. La API puede tener una
+cuota limitada; el servidor conserva cada consulta durante una hora en memoria para
+reducir peticiones repetidas. La caché se pierde al reiniciar o cambiar de instancia.
+
+Los endpoints son `GET /api/jobs/search-profile/{resume_id}` y
+`POST /api/jobs/search`. Ambos requieren un bearer de Supabase y acceso al CV. El
+segundo acepta `resumeId`, `keywords` y `location`, y devuelve hasta 20 ofertas sin
+duplicados. La búsqueda no ejecuta scraping ni calcula afinidad semántica; el
+historial, los favoritos y el matching quedan para entregas posteriores. Las pruebas
+del conector usan un transporte HTTP simulado y no consumen la cuota del proveedor.
+
+Pruebas específicas: `tests/contract/test_jobs_api.py` y
+`frontend/tests/jobs.test.tsx`. Para comprobar resultados reales hace falta una
+clave regional válida y una consulta manual como en
+[`specs/006-cv-job-search/quickstart.md`](../specs/006-cv-job-search/quickstart.md).
+
 ## Despliegue conjunto en Vercel Services
 
 En **Settings → Build and Deployment**, seleccionar **Services** como framework y
@@ -100,6 +129,7 @@ Definir en Vercel `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 para el navegador. El backend requiere `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `AZURE_OPENAI_ENDPOINT`,
 `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_API_VERSION` y `AZURE_OPENAI_DEPLOYMENT`.
+Para habilitar la búsqueda de empleos agregar `JOOBLE_AR_API_KEY` solo al backend.
 No subir secretos al repositorio. Sin `NEXT_PUBLIC_BACKEND_URL`, el frontend
 llama a `/api/*` en el mismo dominio; esa variable solo hace falta si se usa un
 backend externo, como el servicio de Render. Tras cambiar la configuración,

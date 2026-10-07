@@ -16,6 +16,8 @@ El objetivo central es ingerir texto no estructurado y devolver un documento per
 ## Etapa 2: Desarrollo Final - Matcher de Empleos
 Aquí el sistema pasa de ser una herramienta de formato a un agente automatizado. Se requiere infraestructura en segundo plano para buscar y evaluar ofertas sin bloquear la experiencia del usuario web.
 
+La primera entrega de esta etapa ya permite elegir un CV guardado, revisar el puesto y la ubicación sugeridos y buscar hasta 20 ofertas de Argentina desde **Empleos** (`/jobs`). Consulta la API regional de Jooble solo cuando el usuario pulsa **Buscar empleos**. La clave `JOOBLE_AR_API_KEY` se configura únicamente en el backend; consulta [la guía de desarrollo](docs/desarrollo.md#búsqueda-de-empleos-en-argentina). Esta entrega muestra resultados de búsqueda, sin score de afinidad ni guardado de ofertas.
+
 *   **Recolección de ofertas:** Integración con APIs de sitios de empleo o web scraping controlado de descripciones de puestos (Job Descriptions).
 *   **Procesamiento Vectorial:** Transformar tanto el CV estructurado del usuario como las ofertas de empleo en *embeddings* (vectores numéricos de alta dimensionalidad).
 *   **Motor de Similitud:** Calcular la distancia entre el vector del perfil y los vectores de las ofertas para devolver un "Score de afinidad" (ej. 85% de coincidencia).
