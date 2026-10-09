@@ -2,6 +2,13 @@ import { getBackendUrl } from "./backend-url";
 import { createSupabaseBrowserClient } from "./supabase";
 import type { JobSearchProfile, JobSearchResponse } from "../types/jobs";
 
+export class JobsApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "JobsApiError";
+  }
+}
+
 export function getSearchProfile(userId: string, resumeId: string, signal: AbortSignal): Promise<JobSearchProfile> {
   return requestJobs(userId, `/api/jobs/search-profile/${encodeURIComponent(resumeId)}`, { method: "GET", signal });
 }
@@ -14,7 +21,18 @@ export function searchJobs(
   return requestJobs(userId, "/api/jobs/search", { method: "POST", body: JSON.stringify(request), signal });
 }
 
-async function requestJobs<T>(
+export async function warmBackend(signal: AbortSignal): Promise<void> {
+  const response = await fetch(`${getBackendUrl()}/health`, {
+    method: "GET",
+    signal,
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`No se pudo preparar el servidor de empleos (HTTP ${response.status}).`);
+  }
+}
+
+export async function requestJobs<T>(
   userId: string,
   path: string,
   options: { method: "GET" | "POST"; body?: string; signal: AbortSignal },
@@ -52,7 +70,10 @@ async function requestJobs<T>(
       if (current?.access_token === session.access_token) await supabase.auth.signOut();
       throw new Error("Tu sesión expiró. Vuelve a iniciar sesión.");
     }
-    throw new Error(payload?.detail?.message ?? "No se pudo consultar empleos. Inténtalo de nuevo.");
+    throw new JobsApiError(
+      payload?.detail?.message ?? "No se pudo consultar empleos. Inténtalo de nuevo.",
+      response.status,
+    );
   }
   const result = await response.json() as T;
   options.signal.throwIfAborted();

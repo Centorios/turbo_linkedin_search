@@ -16,6 +16,15 @@ const finalCv = {
 
 test.describe("Competencias demostradas y por desarrollar", () => {
   test("separa una competencia con evidencia de las acciones de desarrollo", async ({ page }) => {
+    const testUser = {
+      id: "competency-user",
+      email: "ana@example.test",
+      app_metadata: { provider: "email", providers: ["email"] },
+      user_metadata: {},
+      aud: "authenticated",
+      created_at: new Date().toISOString(),
+    };
+
     await page.route("**/auth/v1/token**", async (route) => {
       const now = Math.floor(Date.now() / 1000);
       await route.fulfill({
@@ -27,18 +36,17 @@ test.describe("Competencias demostradas y por desarrollar", () => {
           expires_in: 3600,
           expires_at: now + 3600,
           refresh_token: "synthetic-competency-refresh",
-          user: {
-            id: "competency-user",
-            email: "ana@example.test",
-            app_metadata: { provider: "email", providers: ["email"] },
-            user_metadata: {},
-            aud: "authenticated",
-            created_at: new Date().toISOString(),
-          },
+          user: testUser,
         }),
       });
     });
+    await page.route("**/auth/v1/user**", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(testUser) }),
+    );
     await page.route("**/auth/v1/logout**", (route) => route.fulfill({ status: 204, body: "" }));
+    await page.route("**/api/profile", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: "null" }),
+    );
     await page.route("**/api/trajectory-assistance/turn", (route) =>
       route.fulfill({
         status: 200,
@@ -76,6 +84,9 @@ test.describe("Competencias demostradas y por desarrollar", () => {
     await page.getByLabel("Contraseña").fill("synthetic-password");
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
     await expect(page).toHaveURL(/\/generate$/);
+    const profileDialog = page.getByRole("dialog", { name: "Completa tu perfil básico" });
+    await expect(profileDialog).toBeVisible();
+    await profileDialog.getByRole("button", { name: "Completar más tarde" }).click();
     await page.getByLabel("Biografía o experiencia profesional").fill(sourceText);
     await page.getByRole("button", { name: "Mejorar trayectoria y competencias" }).click();
 

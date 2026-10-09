@@ -34,3 +34,4 @@ class JobListing(StrictModel):
 
 class JobSearchResponse(StrictModel):
     items: list[JobListing]
+    searchId: str | None = None

@@ -16,4 +16,4 @@ export type JobListing = {
   updatedAt: string | null;
 };
 
-export type JobSearchResponse = { items: JobListing[] };
+export type JobSearchResponse = { items: JobListing[]; searchId: string | null };

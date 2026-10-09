@@ -3,15 +3,27 @@ from functools import lru_cache
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from starlette.concurrency import run_in_threadpool
 
 from app.core.auth import require_user_id
 from app.core.settings import get_settings
 from app.models.cv import StructuredCv
 from app.models.jobs import JobSearchProfile, JobSearchRequest, JobSearchResponse
+from app.models.match import MatchRequest, MatchResult
 from app.services.job_search import build_search_profile
 from app.services.jooble import JobSourceError, JobSourceUnconfigured, JoobleJobsProvider
+from app.services.azure_openai import AzureOpenAIProvider
+from app.services.job_search_repository import JobSearchRepository
+from app.services.match_repository import MatchRepository
+from app.services.match_service import (
+    MatchInProgress,
+    MatchNotFound,
+    MatchProviderUnavailable,
+    MatchService,
+    MatchTimeout,
+    MatchUnavailable,
+)
 from app.services.resume_repository import ResumeRepository
 
 
@@ -23,9 +35,37 @@ def get_resume_repository() -> ResumeRepository:
     return ResumeRepository()
 
 
+def get_job_search_repository() -> JobSearchRepository:
+    return JobSearchRepository()
+
+
+def get_match_repository() -> MatchRepository:
+    return MatchRepository()
+
+
 @lru_cache
 def get_job_provider() -> JoobleJobsProvider:
     return JoobleJobsProvider(get_settings().jooble_ar_api_key)
+
+
+@lru_cache
+def get_match_provider() -> AzureOpenAIProvider:
+    return AzureOpenAIProvider(get_settings())
+
+
+def get_match_service(
+    job_search_repository: Annotated[JobSearchRepository, Depends(get_job_search_repository)],
+    match_repository: Annotated[MatchRepository, Depends(get_match_repository)],
+    resume_repository: Annotated[ResumeRepository, Depends(get_resume_repository)],
+    provider: Annotated[AzureOpenAIProvider, Depends(get_match_provider)],
+) -> MatchService:
+    return MatchService(
+        job_search_repository,
+        match_repository,
+        resume_repository,
+        provider,
+        get_settings(),
+    )
 
 
 async def _load_owned_cv(repository: ResumeRepository, user_id: str, resume_id: UUID) -> StructuredCv:
@@ -57,6 +97,7 @@ async def search_jobs(
     user_id: Annotated[str, Depends(require_user_id)],
     repository: Annotated[ResumeRepository, Depends(get_resume_repository)],
     provider: Annotated[JoobleJobsProvider, Depends(get_job_provider)],
+    search_repository: Annotated[JobSearchRepository, Depends(get_job_search_repository)],
 ) -> JobSearchResponse:
     await _load_owned_cv(repository, user_id, request.resumeId)
     try:
@@ -71,4 +112,91 @@ async def search_jobs(
         if job.id not in seen:
             seen.add(job.id)
             unique.append(job)
-    return JobSearchResponse(items=unique[:20])
+    unique = unique[:20]
+    search_id = None
+    try:
+        search_id = await run_in_threadpool(
+            search_repository.create_search,
+            user_id,
+            str(request.resumeId),
+            request.keywords,
+            request.location,
+            unique,
+        )
+    except Exception as exc:
+        logger.warning("job_search_persistence_failed", extra={"error_type": type(exc).__name__})
+    return JobSearchResponse(items=unique, searchId=search_id)
+
+
+@router.post("/match", response_model=MatchResult)
+async def match_jobs(
+    request: MatchRequest,
+    user_id: Annotated[str, Depends(require_user_id)],
+    service: Annotated[MatchService, Depends(get_match_service)],
+) -> MatchResult:
+    try:
+        return await service.run(user_id, request)
+    except MatchNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    except MatchInProgress as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "match_in_progress",
+                "message": "Ya hay un análisis en curso para esta búsqueda y este CV.",
+            },
+        ) from exc
+    except MatchTimeout as exc:
+        raise HTTPException(
+            status_code=504,
+            detail={
+                "code": "match_timeout",
+                "message": "El análisis tardó más de lo esperado. Inténtalo de nuevo.",
+            },
+        ) from exc
+    except MatchProviderUnavailable as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "match_unavailable",
+                "message": "El servicio de análisis no respondió correctamente. Inténtalo de nuevo.",
+            },
+        ) from exc
+    except MatchUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "match_unavailable",
+                "message": "No se pudo completar el análisis. Inténtalo de nuevo.",
+            },
+        ) from exc
+
+
+@router.get("/match/{search_id}", response_model=MatchResult)
+async def get_match_result(
+    search_id: UUID,
+    resume_id: Annotated[UUID, Query(alias="resumeId")],
+    user_id: Annotated[str, Depends(require_user_id)],
+    service: Annotated[MatchService, Depends(get_match_service)],
+) -> MatchResult:
+    try:
+        return await service.get_saved(user_id, str(search_id), str(resume_id))
+    except MatchNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "match_not_found",
+                "message": "Las recomendaciones no están disponibles",
+            },
+        ) from exc
+    except MatchUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "match_unavailable",
+                "message": "No se pudieron recuperar las recomendaciones. Inténtalo de nuevo.",
+            },
+        ) from exc

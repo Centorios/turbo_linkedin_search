@@ -1,0 +1,39 @@
+- generic [active] [ref=f13e1]:
+  - button "Open Next.js Dev Tools" [ref=f13e43] [cursor=pointer]
+  - alert [ref=f13e47]
+  - generic [ref=f13e48]:
+    - banner [ref=f13e49]:
+      - generic [ref=f13e50]:
+        - img "CV8" [ref=f13e51]
+        - navigation "Navegación de cuenta" [ref=f13e52]:
+          - link "Crear CV" [ref=f13e53] [cursor=pointer]:
+            - /url: /generate
+          - link "Historial" [ref=f13e54] [cursor=pointer]:
+            - /url: /history
+          - link "Empleos" [ref=f13e55] [cursor=pointer]:
+            - /url: /jobs
+        - button "Cerrar sesión" [ref=f13e57]
+    - main [ref=f13e89]:
+      - generic [ref=f13e91]:
+        - generic [ref=f13e92]:
+          - paragraph [ref=f13e93]: Tu espacio profesional
+          - heading "Dale impulso a tu próxima oportunidad." [level=2] [ref=f13e94]
+          - paragraph [ref=f13e95]: Cuenta tu experiencia, revisa el resultado y crea un CV que hable por ti.
+        - generic [ref=f13e96]: ATS + diseño visual
+      - generic [ref=f13e97]:
+        - generic [ref=f13e99]:
+          - heading "Tu experiencia profesional" [level=1] [ref=f13e101]
+          - paragraph [ref=f13e102]: Pega tu biografía o historia laboral en texto libre; la convertimos en un CV estructurado.
+          - paragraph [ref=f13e107]: Cuanta más información incluyas (años, empresas, logros con números, formación e idiomas), mejor será el resultado.
+          - generic [ref=f13e108]:
+            - generic [ref=f13e109]: Biografía o experiencia profesional
+            - textbox "Biografía o experiencia profesional" [ref=f13e110]:
+              - /placeholder: "Ej.: Ana García, ana@example.com, Madrid. Senior Designer en Acme (03-2021 a la actualidad). Lideré el rediseño del checkout, reduciendo el abandono un 18%. Educación: Diseño Gráfico en UBA (2015-2019)."
+            - paragraph [ref=f13e111]: 0 caracteres
+            - generic [ref=f13e112]:
+              - button "Mejorar trayectoria y competencias" [ref=f13e113]
+              - button "Generar CV" [ref=f13e117]
+              - generic [ref=f13e120]: Suele tardar menos de un minuto
+        - generic [ref=f13e122]:
+          - paragraph [ref=f13e128]: Tu CV aparecerá aquí
+          - paragraph [ref=f13e129]: Escribe tu experiencia a la izquierda y pulsa “Generar CV” para ver la vista previa.

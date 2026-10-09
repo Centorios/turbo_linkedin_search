@@ -1,0 +1,58 @@
+- generic [active] [ref=f4e1]:
+  - button "Open Next.js Dev Tools" [ref=f4e43] [cursor=pointer]
+  - alert [ref=f4e47]
+  - generic [ref=f4e258]:
+    - banner [ref=f4e259]:
+      - generic [ref=f4e260]:
+        - img "CV8" [ref=f4e261]
+        - navigation "Navegación de cuenta" [ref=f4e262]:
+          - link "Crear CV" [ref=f4e263] [cursor=pointer]:
+            - /url: /generate
+          - link "Historial" [ref=f4e264] [cursor=pointer]:
+            - /url: /history
+          - link "Empleos" [ref=f4e265] [cursor=pointer]:
+            - /url: /jobs
+        - button "Cerrar sesión" [ref=f4e267]
+    - main [ref=f4e268]:
+      - generic [ref=f4e269]:
+        - paragraph [ref=f4e270]: Oportunidades
+        - heading "Empleos desde tu CV" [level=1] [ref=f4e271]
+        - paragraph [ref=f4e272]: Usa tu experiencia para iniciar una búsqueda de ofertas en Argentina. Revisa los términos antes de consultar.
+      - generic [ref=f4e273]:
+        - region "Preparar búsqueda" [ref=f4e274]:
+          - heading "Preparar búsqueda" [level=2] [ref=f4e275]
+          - generic [ref=f4e276]: CV de referencia
+          - combobox "CV de referencia" [ref=f4e277]:
+            - option "Ana García · 7/10/2026" [selected]
+          - generic [ref=f4e278]:
+            - generic [ref=f4e279]:
+              - generic [ref=f4e280]: Puesto o palabras clave
+              - textbox "Puesto o palabras clave" [ref=f4e281]:
+                - /placeholder: "Ej.: Desarrollador backend"
+                - text: Desarrolladora Python
+            - paragraph [ref=f4e282]: "Habilidades de este CV: Python"
+            - generic [ref=f4e283]:
+              - generic [ref=f4e284]: Ubicación en Argentina
+              - textbox "Ubicación en Argentina" [ref=f4e285]:
+                - /placeholder: "Ej.: Buenos Aires"
+                - text: Argentina
+            - button "Buscar empleos" [ref=f4e286]
+        - region "Ofertas laborales" [ref=f4e287]:
+          - generic [ref=f4e291]:
+            - paragraph [ref=f4e292]: "1 ofertas encontradas · Fuente: Jooble"
+            - list [ref=f4e293]:
+              - listitem [ref=f4e294]:
+                - generic [ref=f4e295]:
+                  - generic [ref=f4e296]:
+                    - heading "Desarrolladora Python" [level=2] [ref=f4e297]
+                    - paragraph [ref=f4e298]: Acme · Argentina
+                  - generic [ref=f4e299]: Jooble
+                - paragraph [ref=f4e300]: Python y FastAPI
+                - link "Ver oferta" [ref=f4e301] [cursor=pointer]:
+                  - /url: https://example.test/oferta-python
+            - region "Recomendaciones Match" [ref=f4e302]:
+              - heading "Match" [level=2] [ref=f4e303]
+              - paragraph [ref=f4e304]: Recibí hasta tres recomendaciones de las ofertas encontradas que mejor se adapten a tu perfil profesional
+              - paragraph [ref=f4e305]: Render puede tardar cerca de un minuto en reactivar el servicio tras un período sin actividad. Si el análisis supera el tiempo de espera, podrás reintentarlo.
+              - button "Match" [ref=f4e307]
+              - status

@@ -5,10 +5,110 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useSession } from "../auth/session-provider";
 import { AppHeader } from "../components/app-header";
 import { SpinnerIcon } from "../components/icons";
-import { getSearchProfile, searchJobs } from "../lib/jobs-client";
+import { getSearchProfile, searchJobs, warmBackend } from "../lib/jobs-client";
+import { MatchPanel, MatchResults, useMatchController } from "./MatchPanel";
 import { listResumes } from "../lib/resume-history-client";
 import type { ResumeSummary } from "../types/resume-history";
 import type { JobListing, JobSearchResponse } from "../types/jobs";
+
+type CachedJobSearch = {
+  resumeId: string;
+  keywords: string;
+  location: string;
+  result: JobSearchResponse;
+};
+
+const JOB_SEARCH_CACHE_PREFIX = "cv8:jobs:last-search";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isJobListing(value: unknown): value is JobListing {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    typeof value.company === "string" &&
+    typeof value.location === "string" &&
+    typeof value.snippet === "string" &&
+    typeof value.url === "string" &&
+    typeof value.source === "string" &&
+    (value.updatedAt === null || typeof value.updatedAt === "string")
+  );
+}
+
+function isJobSearchResponse(value: unknown): value is JobSearchResponse {
+  if (!isRecord(value)) return false;
+  return (
+    (value.searchId === null || typeof value.searchId === "string") &&
+    Array.isArray(value.items) &&
+    value.items.every(isJobListing)
+  );
+}
+
+function isCachedJobSearch(value: unknown, resumeId: string): value is CachedJobSearch {
+  return (
+    isRecord(value) &&
+    value.resumeId === resumeId &&
+    typeof value.keywords === "string" &&
+    typeof value.location === "string" &&
+    isJobSearchResponse(value.result)
+  );
+}
+
+function getJobSearchCacheKey(userId: string, resumeId: string): string {
+  return `${JOB_SEARCH_CACHE_PREFIX}:${encodeURIComponent(userId)}:${encodeURIComponent(resumeId)}`;
+}
+
+function readCachedJobSearch(userId: string, resumeId: string): CachedJobSearch | null {
+  const key = getJobSearchCacheKey(userId, resumeId);
+  let serialized: string | null;
+  try {
+    serialized = window.sessionStorage.getItem(key);
+  } catch (error) {
+    if (!(error instanceof DOMException)) throw error;
+    console.warn("jobs_search_cache_read_failed", error.name);
+    return null;
+  }
+  if (!serialized) return null;
+
+  let cached: unknown;
+  try {
+    cached = JSON.parse(serialized);
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    console.warn("jobs_search_cache_invalid", error.name);
+    window.sessionStorage.removeItem(key);
+    return null;
+  }
+  if (isCachedJobSearch(cached, resumeId)) return cached;
+
+  console.warn("jobs_search_cache_invalid", "InvalidShape");
+  window.sessionStorage.removeItem(key);
+  return null;
+}
+
+function saveCachedJobSearch(userId: string, search: CachedJobSearch): void {
+  try {
+    window.sessionStorage.setItem(
+      getJobSearchCacheKey(userId, search.resumeId),
+      JSON.stringify(search),
+    );
+  } catch (error) {
+    if (!(error instanceof DOMException)) throw error;
+    console.warn("jobs_search_cache_write_failed", error.name);
+  }
+}
+
+function clearCachedJobSearch(userId: string, resumeId: string): void {
+  try {
+    window.sessionStorage.removeItem(getJobSearchCacheKey(userId, resumeId));
+  } catch (error) {
+    if (!(error instanceof DOMException)) throw error;
+    console.warn("jobs_search_cache_clear_failed", error.name);
+  }
+}
 
 export default function JobsPage() {
   const { session, isLoading } = useSession();
@@ -34,6 +134,22 @@ function AccountJobs({ userId }: { userId: string }) {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [result, setResult] = useState<JobSearchResponse | null>(null);
   const searchRequest = useRef<AbortController | null>(null);
+  const match = useMatchController({
+    userId,
+    resumeId: selectedId,
+    searchId: result?.searchId,
+  });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void warmBackend(controller.signal).catch((error: unknown) => {
+      if (!controller.signal.aborted) {
+        const errorType = error instanceof Error ? error.name : "UnknownError";
+        console.warn("jobs_backend_warmup_failed", errorType);
+      }
+    });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -57,11 +173,12 @@ function AccountJobs({ userId }: { userId: string }) {
 
   useEffect(() => {
     searchRequest.current?.abort();
-    setResult(null);
+    const cachedSearch = selectedId ? readCachedJobSearch(userId, selectedId) : null;
+    setResult(cachedSearch?.result ?? null);
     setSearchError(null);
     setSearching(false);
-    setKeywords("");
-    setLocation("Argentina");
+    setKeywords(cachedSearch?.keywords ?? "");
+    setLocation(cachedSearch?.location ?? "Argentina");
     setSkills([]);
     setProfileError(null);
     if (!selectedId) {
@@ -73,8 +190,10 @@ function AccountJobs({ userId }: { userId: string }) {
     void getSearchProfile(userId, selectedId, controller.signal)
       .then((profile) => {
         if (controller.signal.aborted) return;
-        setKeywords(profile.suggestedKeywords);
-        setLocation(profile.suggestedLocation);
+        if (!cachedSearch) {
+          setKeywords(profile.suggestedKeywords);
+          setLocation(profile.suggestedLocation);
+        }
         setSkills(profile.skills);
       })
       .catch((error: unknown) => {
@@ -91,6 +210,7 @@ function AccountJobs({ userId }: { userId: string }) {
     setSearching(false);
     setSearchError(null);
     setResult(null);
+    if (selectedId) clearCachedJobSearch(userId, selectedId);
     setKeywords(value);
   }
 
@@ -99,6 +219,7 @@ function AccountJobs({ userId }: { userId: string }) {
     setSearching(false);
     setSearchError(null);
     setResult(null);
+    if (selectedId) clearCachedJobSearch(userId, selectedId);
     setLocation(value);
   }
 
@@ -116,9 +237,18 @@ function AccountJobs({ userId }: { userId: string }) {
     setSearching(true);
     setSearchError(null);
     setResult(null);
+    clearCachedJobSearch(userId, selectedId);
     try {
       const response = await searchJobs(userId, { resumeId: selectedId, keywords: reviewedKeywords, location: reviewedLocation }, controller.signal);
-      if (!controller.signal.aborted) setResult(response);
+      if (!controller.signal.aborted) {
+        saveCachedJobSearch(userId, {
+          resumeId: selectedId,
+          keywords: reviewedKeywords,
+          location: reviewedLocation,
+          result: response,
+        });
+        setResult(response);
+      }
     } catch (error) {
       if (!controller.signal.aborted) setSearchError(error instanceof Error ? error.message : "No se pudieron consultar empleos.");
     } finally {
@@ -156,9 +286,10 @@ function AccountJobs({ userId }: { userId: string }) {
                 <button type="submit" data-testid="jobs-submit" disabled={searching} className="focus-ring flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-body-sm font-semibold text-on-primary disabled:opacity-60">{searching && <SpinnerIcon className="h-4 w-4" />}{searching ? "Buscando..." : "Buscar empleos"}</button>
               </form>}
             </>}
+            {result && <MatchPanel searchId={result.searchId} match={match} />}
           </section>
           <section aria-label="Ofertas laborales" className="lg:col-span-8">
-            {searching ? <p role="status" data-testid="jobs-searching" className="rounded-xl border border-border bg-surface p-6 text-body-sm text-text-muted">Consultando ofertas en Argentina...</p> : searchError ? <p role="alert" data-testid="jobs-error" className="rounded-xl border border-danger bg-danger-surface p-6 text-body-sm text-danger">{searchError}</p> : result?.items.length === 0 ? <p data-testid="jobs-empty" className="rounded-xl border border-border bg-surface p-6 text-body-sm text-text-muted">No encontramos ofertas con estos términos. Prueba con un puesto más general u otra ubicación.</p> : result ? <div data-testid="jobs-results"><p className="mb-3 text-body-sm font-semibold text-text-muted">{result.items.length} ofertas encontradas · Fuente: Jooble</p><ul className="space-y-3">{result.items.map((job) => <JobCard key={job.id} job={job} />)}</ul></div> : <div className="flex min-h-[260px] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface p-8 text-center"><p className="text-body-sm font-semibold">Tus ofertas aparecerán aquí</p><p className="mt-2 max-w-sm text-caption-xs text-text-muted">Elige un CV, ajusta la búsqueda y pulsa “Buscar empleos”.</p></div>}
+            {searching ? <p role="status" data-testid="jobs-searching" className="rounded-xl border border-border bg-surface p-6 text-body-sm text-text-muted">Consultando ofertas en Argentina...</p> : searchError ? <p role="alert" data-testid="jobs-error" className="rounded-xl border border-danger bg-danger-surface p-6 text-body-sm text-danger">{searchError}</p> : result ? <div data-testid="jobs-results"><MatchResults match={match} />{result.items.length === 0 ? <p data-testid="jobs-empty" className="rounded-xl border border-border bg-surface p-6 text-body-sm text-text-muted">No encontramos ofertas con estos términos. Prueba con un puesto más general u otra ubicación.</p> : <><p className="mb-3 text-body-sm font-semibold text-text-muted">{result.items.length} ofertas encontradas · Fuente: Jooble</p><ul className="space-y-3">{result.items.map((job) => <JobCard key={job.id} job={job} />)}</ul></>}</div> : <div className="flex min-h-[260px] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface p-8 text-center"><p className="text-body-sm font-semibold">Tus ofertas aparecerán aquí</p><p className="mt-2 max-w-sm text-caption-xs text-text-muted">Elige un CV, ajusta la búsqueda y pulsa “Buscar empleos”.</p></div>}
           </section>
         </div>
       </main>

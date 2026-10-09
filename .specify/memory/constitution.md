@@ -1,7 +1,8 @@
 <!--
 Sync Impact Report
-- Version change: 1.1.1 -> 1.2.0
-- Modified principles: I. Etapas incrementales; IV. Seguridad y aislamiento de datos; V. Simplicidad verificable; Technology and Scope
+- Version change: 1.2.0 -> 1.3.0
+- Modified principles: I. Etapas incrementales; IV. Seguridad y aislamiento de datos; Technology and Scope
+- Nota: se habilitan embeddings, pgvector, scraping, Apify, Celery y Redis; la generación del CV sigue sincrónica
 - Added sections: ninguna
 - Removed sections: ninguna sección sustantiva previa
 - Follow-up TODOs: confirmar RATIFICATION_DATE
@@ -16,8 +17,11 @@ La Etapa 1 MUST conservar el flujo de transformación de información profesiona
 en un CV estructurado, revisable y exportable a PDF. La Etapa 2 MAY avanzar en entregas
 independientes con contratos y criterios de aceptación propios. La primera entrega de búsqueda
 laboral MUST usar CVs validados y una fuente de ofertas autorizada; no implica por sí misma
-scraping, Apify, Celery, Redis, `pgvector` ni embeddings. Cada entrega MUST declarar qué
-capacidades quedan pendientes para evitar representar búsqueda textual como matching semántico.
+scraping, Apify, Celery ni Redis, pero estos MAY incorporarse en entregas posteriores que los
+justifiquen. La entrega de Match MAY usar embeddings de Azure OpenAI y `pgvector` en Supabase,
+limitada a las ofertas de una búsqueda y al CV elegido. Cada entrega
+MUST declarar qué capacidades quedan pendientes para evitar representar búsqueda textual como
+matching semántico.
 
 ### II. Contratos estructurados y validación en los límites
 FastAPI MUST enviar a Azure OpenAI un System Prompt que exija exclusivamente JSON estructurado,
@@ -46,7 +50,9 @@ permiso para sustituir la autorización del backend. Cada endpoint MUST validar 
 el acceso al recurso solicitado y mantener aislados los datos de usuarios diferentes. Estas reglas
 protegen la información profesional y distinguen configuración pública de secretos privilegiados.
 Las búsquedas externas MUST enviar solo términos y ubicación revisados por el usuario. El CV
-completo y los datos personales MUST permanecer en la aplicación.
+completo y los datos personales MUST permanecer en la aplicación, salvo el envío al servicio de
+Azure OpenAI propio del proyecto para embeddings y análisis de Match. Los vectores y
+recomendaciones MUST quedar aislados por usuario.
 
 ### V. Simplicidad verificable y calidad de integración
 Cada cambio MUST preservar la separación entre frontend, FastAPI, Supabase y Azure OpenAI.
@@ -62,7 +68,12 @@ La implementación MUST limitarse al stack aprobado: React/Next.js en el fronten
 Supabase para datos y persistencia operativa del MVP; Azure OpenAI Service para IA; Vercel para
 frontend, Render para backend y Supabase para base de datos y autenticación. Para la primera
 entrega de búsqueda laboral en Argentina se admite la API REST regional de Jooble desde el
-backend, con credencial en variable de entorno del servidor. El flujo de generación del CV
+backend, con credencial en variable de entorno del servidor. Para Match se admiten un modelo de
+embeddings desplegado en Azure OpenAI, distinto del modelo de generación de CVs, y `pgvector` en
+Supabase; el análisis de Match MAY ejecutarse en segundo plano dentro de FastAPI, con estado
+consultable. Se admiten además scraping controlado (respetando legalidad, términos de las
+fuentes y tasa de solicitudes), Apify, Celery y Redis (p. ej. Upstash) para recolección de
+ofertas y tareas en segundo plano. El flujo de generación del CV
 MUST seguir siendo sincrónico:
 autenticación en Supabase, envío al endpoint `/api/generate-cv`, estructuración mediante Azure
 OpenAI, validación y persistencia en `resumes`, y devolución del JSON al frontend. Cualquier
@@ -90,4 +101,4 @@ comprobar el cumplimiento de esta constitución. La revisión de cumplimiento se
 feature y antes de cada release; cualquier excepción MUST quedar documentada y aprobada junto
 con su fecha de caducidad.
 
-**Version**: 1.2.0 | **Ratified**: TODO(RATIFICATION_DATE): confirmar fecha de adopción original | **Last Amended**: 2026-10-07
+**Version**: 1.3.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-08

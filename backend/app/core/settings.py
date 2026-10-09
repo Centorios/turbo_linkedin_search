@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     azure_openai_api_key: str
     azure_openai_api_version: str
     azure_openai_deployment: str
+    azure_openai_embedding_deployment: str = "text-embedding-3-small"
+    azure_openai_embedding_dimensions: int = 1536
+    match_deadline_seconds: int = 75
+    match_embeddings_timeout_seconds: int = 20
+    match_llm_timeout_seconds: int = 45
+    match_candidates_k: int = 8
     jooble_ar_api_key: str = ""
 
 

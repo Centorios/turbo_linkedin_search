@@ -10,6 +10,7 @@ from app.models.trajectory_assistance import (
     FollowUpQuestion,
     NeedsInputResult,
     ReadyResult,
+    TrajectoryProposal,
 )
 from app.services.azure_openai import AzureOpenAIError, AzureOpenAIProvider
 
@@ -50,6 +51,7 @@ class TrajectoryAssistanceService:
             raise ValueError("Authenticated user is required")
         try:
             raw_result = await self.provider.generate_assistance_turn(request)
+            raw_result = self._discard_invalid_proposals(raw_result)
             result = _ASSISTANCE_RESULT_ADAPTER.validate_python(raw_result)
         except AzureOpenAIError as exc:
             raise AzureOpenAIError("Azure OpenAI request failed") from exc
@@ -102,3 +104,24 @@ class TrajectoryAssistanceService:
                 )
 
         return result
+
+    @staticmethod
+    def _discard_invalid_proposals(raw_result: dict) -> dict:
+        if raw_result.get("state") != "ready" or not isinstance(raw_result.get("proposals"), list):
+            return raw_result
+
+        valid_proposals = []
+        for index, proposal in enumerate(raw_result["proposals"]):
+            try:
+                valid_proposals.append(TrajectoryProposal.model_validate(proposal).model_dump())
+            except ValidationError as exc:
+                logger.warning(
+                    "trajectory_assistance_invalid_proposal index=%s issues=%s",
+                    index,
+                    [
+                        {"location": error["loc"], "type": error["type"]}
+                        for error in exc.errors(include_input=False)
+                    ],
+                )
+
+        return {**raw_result, "proposals": valid_proposals}

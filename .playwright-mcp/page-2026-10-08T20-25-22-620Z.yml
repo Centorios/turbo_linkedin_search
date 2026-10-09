@@ -1,0 +1,5 @@
+- generic [active] [ref=f3e1]:
+  - button "Open Next.js Dev Tools" [ref=f3e43] [cursor=pointer]
+  - alert [ref=f3e47]
+  - main [ref=f3e271]:
+    - status [ref=f3e272]: Redirigiendo al acceso...

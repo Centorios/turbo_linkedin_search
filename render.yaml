@@ -31,3 +31,15 @@ services:
         sync: false
       - key: AZURE_OPENAI_DEPLOYMENT
         sync: false
+      - key: AZURE_OPENAI_EMBEDDING_DEPLOYMENT
+        value: text-embedding-3-small
+      - key: AZURE_OPENAI_EMBEDDING_DIMENSIONS
+        value: "1536"
+      - key: MATCH_DEADLINE_SECONDS
+        value: "75"
+      - key: MATCH_EMBEDDINGS_TIMEOUT_SECONDS
+        value: "20"
+      - key: MATCH_LLM_TIMEOUT_SECONDS
+        value: "45"
+      - key: MATCH_CANDIDATES_K
+        value: "8"

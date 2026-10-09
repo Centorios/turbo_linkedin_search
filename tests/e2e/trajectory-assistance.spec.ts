@@ -38,6 +38,9 @@ test.describe("Asistencia de trayectoria profesional", () => {
       });
     });
     await page.route("**/auth/v1/logout**", (route) => route.fulfill({ status: 204, body: "" }));
+    await page.route("**/api/profile", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: "null" }),
+    );
     await page.route("**/api/trajectory-assistance/turn", async (route) => {
       const payload = route.request().postDataJSON() as {
         sourceText: string;
@@ -59,7 +62,7 @@ test.describe("Asistencia de trayectoria profesional", () => {
         return;
       }
 
-      expect(payload.answers[0].answer).toBe("No conozco una cifra fiable.");
+      expect(payload.answers[0].answer).toBe("No conozco ese dato.");
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -104,6 +107,9 @@ test.describe("Asistencia de trayectoria profesional", () => {
     await page.getByLabel("Contraseña").fill("synthetic-password");
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
     await expect(page).toHaveURL(/\/generate$/);
+    const profileDialog = page.getByRole("dialog", { name: "Completa tu perfil básico" });
+    await expect(profileDialog).toBeVisible();
+    await profileDialog.getByRole("button", { name: "Completar más tarde" }).click();
     await page.getByLabel("Biografía o experiencia profesional").fill(sourceText);
     await page.getByRole("button", { name: "Mejorar trayectoria y competencias" }).click();
 
@@ -113,7 +119,9 @@ test.describe("Asistencia de trayectoria profesional", () => {
     await dialog.getByRole("button", { name: "No conozco esos datos" }).click();
 
     await expect(dialog.getByRole("heading", { name: "Propuestas con evidencia" })).toBeVisible();
-    await expect(dialog.getByText("Lideré una migración de facturación", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("region", { name: "Propuestas con evidencia" })).toContainText(
+      "Lideré una migración de facturación",
+    );
     await expect(dialog.getByRole("heading", { name: "Competencias que podrías desarrollar" })).toBeVisible();
 
     await dialog.getByRole("textbox", { name: "Editar propuesta achievement-1" }).fill(acceptedRevision);

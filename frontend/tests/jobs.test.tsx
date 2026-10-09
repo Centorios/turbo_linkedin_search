@@ -4,13 +4,34 @@ import JobsPage from "../app/jobs/page";
 
 const mocks = vi.hoisted(() => ({
   session: { user: { id: "user-a" } } as { user: { id: string } } | null,
-  list: vi.fn(), profile: vi.fn(), search: vi.fn(),
+  list: vi.fn(), profile: vi.fn(), search: vi.fn(), warm: vi.fn(),
+  match: {
+    result: { recommendations: [{ rank: 1 }] },
+    status: "success",
+    error: null,
+    loadingSavedResult: false,
+    busy: false,
+    runMatch: vi.fn(),
+  },
 }));
 
 vi.mock("../app/auth/session-provider", () => ({ useSession: () => ({ session: mocks.session, isLoading: false }) }));
 vi.mock("../app/lib/resume-history-client", () => ({ listResumes: mocks.list }));
-vi.mock("../app/lib/jobs-client", () => ({ getSearchProfile: mocks.profile, searchJobs: mocks.search }));
+vi.mock("../app/lib/jobs-client", () => ({
+  getSearchProfile: mocks.profile,
+  searchJobs: mocks.search,
+  warmBackend: mocks.warm,
+}));
 vi.mock("../app/components/app-header", () => ({ AppHeader: () => <header>CV8</header> }));
+vi.mock("../app/jobs/MatchPanel", () => ({
+  useMatchController: () => mocks.match,
+  MatchPanel: () => <section aria-label="Recomendaciones Match">Match</section>,
+  MatchResults: () => (
+    <section aria-label="Mejores coincidencias de Match" data-testid="match-results">
+      Coincidencias Match
+    </section>
+  ),
+}));
 
 const item = { id: "resume-a", createdAt: "2026-10-07T12:00:00Z", fullName: "Ana", summary: "Python" };
 const profile = { resumeId: "resume-a", suggestedKeywords: "Desarrollador backend", suggestedLocation: "Buenos Aires", skills: ["Python"] };
@@ -21,7 +42,9 @@ beforeEach(() => {
   mocks.session = { user: { id: "user-a" } };
   mocks.list.mockResolvedValue({ items: [item], offset: 0, limit: 20, hasMore: false });
   mocks.profile.mockResolvedValue(profile);
-  mocks.search.mockResolvedValue({ items: [{ id: "jooble:1", title: "Backend Python", company: "Acme", location: "CABA", snippet: "Servicios", url: "https://ar.jooble.org/jdp/1", source: "Jooble", updatedAt: null }] });
+  mocks.warm.mockResolvedValue(undefined);
+  window.sessionStorage.clear();
+  mocks.search.mockResolvedValue({ searchId: "search-a", items: [{ id: "jooble:1", title: "Backend Python", company: "Acme", location: "CABA", snippet: "Servicios", url: "https://ar.jooble.org/jdp/1", source: "Jooble", updatedAt: null }] });
 });
 
 describe("Búsqueda de empleos", () => {
@@ -32,6 +55,24 @@ describe("Búsqueda de empleos", () => {
     fireEvent.change(screen.getByTestId("jobs-keywords"), { target: { value: "Python" } });
     fireEvent.click(screen.getByTestId("jobs-submit"));
     await screen.findByTestId("job-jooble:1");
+    const searchSection = screen.getByRole("region", { name: "Preparar búsqueda" });
+    const matchPanel = screen.getByRole("region", { name: "Recomendaciones Match" });
+    const results = screen.getByTestId("jobs-results");
+    const matchResults = screen.getByRole("region", { name: "Mejores coincidencias de Match" });
+    expect(searchSection.contains(matchPanel)).toBe(true);
+    expect(
+      Boolean(
+        screen.getByTestId("jobs-submit").compareDocumentPosition(matchPanel) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
+    expect(results.contains(matchResults)).toBe(true);
+    expect(
+      Boolean(
+        matchResults.compareDocumentPosition(screen.getByTestId("job-jooble:1")) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
     expect(mocks.search).toHaveBeenCalledWith("user-a", { resumeId: "resume-a", keywords: "Python", location: "Buenos Aires" }, expect.any(AbortSignal));
     expect(screen.getByText("Backend Python")).toBeTruthy();
     const link = screen.getByTestId("job-link-jooble:1") as HTMLAnchorElement;
@@ -39,8 +80,28 @@ describe("Búsqueda de empleos", () => {
     expect(link.rel).toContain("noopener");
   });
 
+  it("restaura la última búsqueda al volver a montar la pantalla", async () => {
+    const firstView = render(<JobsPage />);
+    await waitFor(() => expect((screen.getByTestId("jobs-keywords") as HTMLInputElement).value).toBe("Desarrollador backend"));
+    fireEvent.click(screen.getByTestId("jobs-submit"));
+    await screen.findByTestId("job-jooble:1");
+    firstView.unmount();
+
+    render(<JobsPage />);
+
+    expect(await screen.findByTestId("job-jooble:1")).toBeTruthy();
+    expect(mocks.search).toHaveBeenCalledTimes(1);
+  });
+
+  it("calienta el backend al abrir la pantalla de empleos", async () => {
+    render(<JobsPage />);
+
+    await waitFor(() => expect(mocks.warm).toHaveBeenCalledTimes(1));
+    expect(mocks.warm).toHaveBeenCalledWith(expect.any(AbortSignal));
+  });
+
   it("muestra estado vacío o error sin borrar la consulta", async () => {
-    mocks.search.mockResolvedValueOnce({ items: [] });
+    mocks.search.mockResolvedValueOnce({ searchId: "search-empty", items: [] });
     mocks.search.mockRejectedValueOnce(new Error("La búsqueda de empleos aún no está configurada."));
     render(<JobsPage />);
     await waitFor(() => expect((screen.getByTestId("jobs-keywords") as HTMLInputElement).value).toBe("Desarrollador backend"));
@@ -75,7 +136,7 @@ describe("Búsqueda de empleos", () => {
     await screen.findByTestId("jobs-searching");
     fireEvent.change(screen.getByTestId("jobs-resume-select"), { target: { value: "resume-b" } });
     await waitFor(() => expect((screen.getByTestId("jobs-keywords") as HTMLInputElement).value).toBe("Diseñadora"));
-    finishSearch?.({ items: [{ id: "jooble:old", title: "Oferta anterior" }] });
+    finishSearch?.({ searchId: "search-old", items: [{ id: "jooble:old", title: "Oferta anterior", company: "", location: "", snippet: "", url: "https://example.test/old", source: "Jooble", updatedAt: null }] });
     await waitFor(() => expect(screen.queryByTestId("job-jooble:old")).toBeNull());
     expect(screen.queryByTestId("jobs-searching")).toBeNull();
   });
