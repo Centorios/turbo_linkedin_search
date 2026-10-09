@@ -103,7 +103,7 @@ class MatchRepository:
             self.client.table("match_recommendations")
             .select(
                 "rank,offer_id,affinity,summary,matches,unmet_requirements,missing_info,"
-                "job_search_offers(title,company,location,url)"
+                "job_search_offers(title,company,location,url,source,alternate_urls,description_is_partial)"
             )
             .eq("user_id", user_id)
             .eq("result_id", result.data["id"])

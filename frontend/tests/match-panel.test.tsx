@@ -6,6 +6,7 @@ import {
   useMatchController,
 } from "../app/jobs/MatchPanel";
 import type { MatchResult } from "../app/types/match";
+import type { JobSourceState } from "../app/types/jobs";
 
 const mocks = vi.hoisted(() => ({ request: vi.fn(), saved: vi.fn() }));
 
@@ -34,7 +35,7 @@ const result: MatchResult = {
   ],
 };
 
-function MatchTestScreen({ searchId = "search-a" }: { searchId?: string | null }) {
+function MatchTestScreen({ searchId = "search-a", sources = [] }: { searchId?: string | null; sources?: JobSourceState[] }) {
   const match = useMatchController({
     userId: "user-a",
     resumeId: "resume-a",
@@ -43,7 +44,7 @@ function MatchTestScreen({ searchId = "search-a" }: { searchId?: string | null }
   return (
     <>
       <MatchPanel searchId={searchId} match={match} />
-      <MatchResults match={match} />
+      <MatchResults match={match} sources={sources} />
     </>
   );
 }
@@ -63,6 +64,23 @@ beforeEach(() => {
 });
 
 describe("Panel de Match", () => {
+  it.each(["pending", "running"] as const)("explica un resultado provisional mientras la fuente está %s", async (status) => {
+    mocks.saved.mockResolvedValue({ ...result, partial: true });
+    render(<MatchTestScreen sources={[{ source: "linkedin", status, offersCount: 0 }]} />);
+    await screen.findByTestId("match-recommendation-1");
+    const warning = screen.getByTestId("match-partial-warning").textContent;
+    expect(warning).toContain("Resultado provisional");
+    expect(warning).not.toContain("falló");
+    expect(warning).toContain("recalcula");
+  });
+
+  it.each(["failed", "timed_out"] as const)("explica el resultado parcial cuando la fuente está %s", async (status) => {
+    mocks.saved.mockResolvedValue({ ...result, partial: true });
+    render(<MatchTestScreen sources={[{ source: "linkedin", status, offersCount: 0 }]} />);
+    await screen.findByTestId("match-recommendation-1");
+    expect(screen.getByTestId("match-partial-warning").textContent).toContain("falló o agotó su tiempo");
+  });
+
   it("muestra recomendaciones y permite recalcular", async () => {
     mocks.request.mockResolvedValue(result);
     renderMatch();
@@ -206,6 +224,20 @@ describe("Panel de Match", () => {
     fireEvent.click(screen.getByTestId("match-button"));
 
     expect(await screen.findByTestId("match-empty")).toBeTruthy();
-    expect(screen.queryByTestId("match-recommendation-1")).toBeNull();
+  });
+
+  it("muestra la fuente, el aviso de resultado parcial y oculta Recalcular sin LinkedIn", async () => {
+    mocks.saved.mockResolvedValue({
+      ...result,
+      partial: true,
+      canRecalculate: false,
+      recommendations: [{ ...result.recommendations[0], source: "LinkedIn", descriptionIsPartial: true }],
+    });
+    renderMatch();
+
+    expect(await screen.findByTestId("match-recommendation-1")).toBeTruthy();
+    expect(screen.getByTestId("match-source-1").textContent).toContain("LinkedIn");
+    expect(screen.getByTestId("match-partial-warning")).toBeTruthy();
+    expect(screen.queryByTestId("match-recalculate")).toBeNull();
   });
 });

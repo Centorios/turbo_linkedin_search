@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { SpinnerIcon } from "../components/icons";
 import { getSavedMatch, requestMatch } from "../lib/match-client";
 import type { MatchResult } from "../types/match";
+import type { JobSourceState } from "../types/jobs";
 
 const REQUEST_TIMEOUT_MS = 85_000;
 
@@ -140,7 +141,7 @@ export function MatchPanel({
           {match.busy && <SpinnerIcon className="h-4 w-4" />}
           Match
         </button>
-        {match.result && match.status === "success" && (
+        {match.result && match.status === "success" && match.result.canRecalculate !== false && (
           <button
             type="button"
             data-testid="match-recalculate"
@@ -184,9 +185,11 @@ export function MatchPanel({
   );
 }
 
-export function MatchResults({ match }: { match: MatchController }) {
+export function MatchResults({ match, sources = [] }: { match: MatchController; sources?: JobSourceState[] }) {
   const { result } = match;
   if (!result) return null;
+  const sourcesPending = sources.some((source) => source.status === "pending" || source.status === "running");
+  const sourcesFailed = sources.some((source) => source.status === "failed" || source.status === "timed_out");
 
   return (
     <section
@@ -203,6 +206,19 @@ export function MatchResults({ match }: { match: MatchController }) {
           Ofertas recomendadas entre los resultados de esta búsqueda, ordenadas por afinidad con tu CV.
         </p>
       </div>
+      {result.partial && (
+        <p
+          role="status"
+          data-testid="match-partial-warning"
+          className="mt-4 rounded-lg bg-subtle p-3 text-body-sm text-text-muted"
+        >
+          {sourcesPending
+            ? "Resultado provisional: todavía se están obteniendo ofertas. Cuando termine la búsqueda, recalcula Match para incluir las nuevas ofertas."
+            : sourcesFailed
+              ? "Resultado parcial: alguna fuente falló o agotó su tiempo de espera. El análisis utiliza las ofertas disponibles."
+              : "Este análisis puede no incluir todas las ofertas de la búsqueda. Recalcula Match para actualizar las recomendaciones."}
+        </p>
+      )}
       {result.resumeChanged && (
         <p
           data-testid="match-resume-changed"
@@ -248,6 +264,15 @@ export function MatchResults({ match }: { match: MatchController }) {
                       </span>
                     )}
                   </div>
+                  {recommendation.source && (
+                    <span
+                      data-testid={`match-source-${recommendation.rank}`}
+                      className="mt-1 inline-block rounded-full bg-subtle px-2 py-0.5 text-caption-xs font-semibold text-text-muted"
+                    >
+                      {recommendation.source}
+                      {recommendation.descriptionIsPartial ? " · descripción parcial" : ""}
+                    </span>
+                  )}
                   <p className="mt-1 text-body-sm text-text-muted">
                     {recommendation.company || "Empresa no indicada"} · {recommendation.location || "Ubicación no indicada"}
                   </p>

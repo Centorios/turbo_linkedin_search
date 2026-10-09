@@ -12,9 +12,14 @@ export type MatchRecommendation = {
   matches: string[];
   unmetRequirements: string[];
   missingInfo: string[];
+  source?: string;
+  alternateUrls?: { source: string; url: string }[];
+  descriptionIsPartial?: boolean;
 };
 
 export type MatchResult = {
+  partial?: boolean;
+  canRecalculate?: boolean;
   resumeChanged: boolean;
   completedAt: string;
   recommendations: MatchRecommendation[];

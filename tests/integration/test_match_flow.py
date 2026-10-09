@@ -47,6 +47,9 @@ class FakeJobSearchRepository:
     def list_offers(self, user_id, search_id):
         return deepcopy(self.offers)
 
+    def list_source_runs(self, user_id, search_id):
+        return []
+
     def save_offer_embeddings(self, vectors):
         self.saved_embeddings.append(deepcopy(vectors))
         for offer in self.offers:

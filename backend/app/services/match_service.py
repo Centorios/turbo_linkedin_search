@@ -91,7 +91,8 @@ class MatchService:
                     "match_not_found", "Las recomendaciones no están disponibles"
                 )
             resume_changed = saved_result.get("resume_content_hash") != resume_hash
-            return self._saved_result(saved_result, resume_changed)
+            partial, can_recalculate = await self._run_state(user_id, search_id)
+            return self._saved_result(saved_result, resume_changed, partial, can_recalculate)
         except MatchNotFound:
             raise
         except (ValidationError, ValueError, TypeError, KeyError) as exc:
@@ -150,8 +151,9 @@ class MatchService:
         resume_changed = bool(
             saved_result and saved_result.get("resume_content_hash") != resume_hash
         )
+        partial, can_recalculate = await self._run_state(user_id, search_id)
         if saved_result and not request.recalculate:
-            return self._saved_result(saved_result, resume_changed)
+            return self._saved_result(saved_result, resume_changed, partial, can_recalculate)
 
         locked = await run_in_threadpool(self.match_repository.try_lock, search_id, resume_id)
         if not locked:
@@ -210,6 +212,7 @@ class MatchService:
                     matches=item["matches"],
                     unmetRequirements=item["unmet_requirements"],
                     missingInfo=item["missing_info"],
+                    **self._offer_extras(offer_by_id[item["offer_id"]]),
                 )
                 for index, item in enumerate(recommendations, start=1)
             ]
@@ -217,6 +220,8 @@ class MatchService:
                 resumeChanged=resume_changed,
                 completedAt=datetime.now(timezone.utc),
                 recommendations=response_recommendations,
+                partial=partial,
+                canRecalculate=can_recalculate,
             )
         finally:
             await run_in_threadpool(self.match_repository.release_lock, search_id, resume_id)
@@ -311,13 +316,21 @@ class MatchService:
                     "company": offer["company"],
                     "location": offer["location"],
                     "snippet": offer["snippet"],
+                    "description": offer.get("description"),
+                    "source": offer.get("source"),
                     "url": offer["url"],
                     "similarity": match.get("similarity"),
                 }
             )
         return candidates
 
-    def _saved_result(self, saved_result: dict[str, Any], resume_changed: bool) -> MatchResult:
+    def _saved_result(
+        self,
+        saved_result: dict[str, Any],
+        resume_changed: bool,
+        partial: bool = False,
+        can_recalculate: bool = False,
+    ) -> MatchResult:
         recommendations = []
         for item in saved_result.get("recommendations", []):
             offer = item.get("job_search_offers") or {}
@@ -336,18 +349,44 @@ class MatchService:
                     matches=item["matches"],
                     unmetRequirements=item["unmet_requirements"],
                     missingInfo=item["missing_info"],
+                    **self._offer_extras(offer),
                 )
             )
         return MatchResult(
             resumeChanged=resume_changed,
             completedAt=saved_result["created_at"],
             recommendations=recommendations,
+            partial=partial,
+            canRecalculate=can_recalculate,
         )
+
+    @staticmethod
+    def _offer_extras(offer: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "source": offer.get("source") or "Jooble",
+            "alternateUrls": offer.get("alternate_urls") or [],
+            "descriptionIsPartial": bool(offer.get("description_is_partial")),
+        }
+
+    async def _run_state(self, user_id: str, search_id: str) -> tuple[bool, bool]:
+        runs = await run_in_threadpool(
+            self.job_search_repository.list_source_runs, user_id, search_id
+        )
+        partial = any(run["status"] != "succeeded" for run in runs)
+        can_recalculate = any(
+            run["source"] == "linkedin" and run["status"] == "succeeded" for run in runs
+        )
+        return partial, can_recalculate
 
     @staticmethod
     def _offer_text(offer: dict[str, Any]) -> str:
         return "\n".join(
-            [offer["title"], offer["company"], offer["location"], offer["snippet"]]
+            [
+                offer["title"],
+                offer["company"],
+                offer["location"],
+                offer.get("description") or offer["snippet"],
+            ]
         )
 
     def _parse_vector(self, value: Any) -> list[float]:

@@ -103,6 +103,9 @@ def test_match_returns_contract_result(context):
         "matches": ["Python"],
         "unmetRequirements": [],
         "missingInfo": [],
+        "source": "Jooble",
+        "alternateUrls": [],
+        "descriptionIsPartial": False,
     }
 
 

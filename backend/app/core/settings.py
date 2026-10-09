@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     match_llm_timeout_seconds: int = 45
     match_candidates_k: int = 8
     jooble_ar_api_key: str = ""
+    apify_token: str = ""
+    apify_linkedin_actor_id: str = ""
+    apify_max_charge_usd: float = 0.10
+    apify_run_timeout_seconds: int = 180
+    apify_max_items: int = 20
+    apify_webhook_secret: str = ""
 
 
 @lru_cache

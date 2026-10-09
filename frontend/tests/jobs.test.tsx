@@ -1,10 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import JobsPage from "../app/jobs/page";
 
 const mocks = vi.hoisted(() => ({
   session: { user: { id: "user-a" } } as { user: { id: string } } | null,
-  list: vi.fn(), profile: vi.fn(), search: vi.fn(), warm: vi.fn(),
+  list: vi.fn(), profile: vi.fn(), search: vi.fn(), warm: vi.fn(), status: vi.fn(), retry: vi.fn(),
   match: {
     result: { recommendations: [{ rank: 1 }] },
     status: "success",
@@ -21,6 +21,8 @@ vi.mock("../app/lib/jobs-client", () => ({
   getSearchProfile: mocks.profile,
   searchJobs: mocks.search,
   warmBackend: mocks.warm,
+  getSearchStatus: mocks.status,
+  retryLinkedIn: mocks.retry,
 }));
 vi.mock("../app/components/app-header", () => ({ AppHeader: () => <header>CV8</header> }));
 vi.mock("../app/jobs/MatchPanel", () => ({
@@ -36,7 +38,10 @@ vi.mock("../app/jobs/MatchPanel", () => ({
 const item = { id: "resume-a", createdAt: "2026-10-07T12:00:00Z", fullName: "Ana", summary: "Python" };
 const profile = { resumeId: "resume-a", suggestedKeywords: "Desarrollador backend", suggestedLocation: "Buenos Aires", skills: ["Python"] };
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.session = { user: { id: "user-a" } };
@@ -48,6 +53,87 @@ beforeEach(() => {
 });
 
 describe("Búsqueda de empleos", () => {
+  const liJob = { id: "linkedin:9", title: "Dev LinkedIn", company: "Beta", location: "CABA", snippet: "x", url: "https://www.linkedin.com/jobs/view/9", source: "LinkedIn", updatedAt: null };
+
+  it("muestra el aviso de servicio externo y envía LinkedIn como fuente al activarlo", async () => {
+    mocks.search.mockResolvedValueOnce({ searchId: "s1", status: "in_progress", items: [], sources: [{ source: "linkedin", status: "running", offersCount: 0 }] });
+    mocks.status.mockResolvedValue({ searchId: "s1", status: "complete", items: [liJob], sources: [{ source: "linkedin", status: "succeeded", offersCount: 1 }] });
+    render(<JobsPage />);
+    await screen.findByTestId("jobs-keywords");
+    fireEvent.click(screen.getByTestId("jobs-source-linkedin"));
+    expect(screen.getByTestId("jobs-linkedin-notice").textContent).toContain("Apify");
+    fireEvent.click(screen.getByTestId("jobs-submit"));
+    await screen.findByTestId("jobs-source-status-linkedin");
+    expect(mocks.search).toHaveBeenCalledWith("user-a", { resumeId: "resume-a", keywords: "Desarrollador backend", location: "Buenos Aires", sources: ["jooble", "linkedin"] }, expect.any(AbortSignal));
+    expect(await screen.findByTestId("job-linkedin:9", undefined, { timeout: 4000 })).toBeTruthy();
+    expect(screen.getByTestId("jobs-source-status-linkedin").textContent).toBe("LinkedIn: 1 ofertas");
+    expect(screen.queryByTestId("jobs-linkedin-retry")).toBeNull();
+  });
+
+  it.each([
+    ["pending", "Búsqueda pendiente", false],
+    ["running", "Buscando", false],
+    ["succeeded", "1 ofertas", false],
+    ["timed_out", "Tardó demasiado", true],
+  ])("interpreta el estado real de LinkedIn: %s", async (status, message, retryVisible) => {
+    mocks.search.mockResolvedValueOnce({
+      searchId: "status-search",
+      status: status === "succeeded" ? "complete" : status === "timed_out" ? "incomplete" : "in_progress",
+      items: [liJob],
+      sources: [{ source: "linkedin", status, offersCount: 1 }],
+    });
+    render(<JobsPage />);
+    await screen.findByTestId("jobs-keywords");
+    fireEvent.click(screen.getByTestId("jobs-source-linkedin"));
+    fireEvent.click(screen.getByTestId("jobs-submit"));
+    expect((await screen.findByTestId("jobs-source-status-linkedin")).textContent).toContain(message);
+    expect(Boolean(screen.queryByTestId("jobs-linkedin-retry"))).toBe(retryVisible);
+    if (status === "pending" || status === "running") {
+      expect(screen.getByTestId("jobs-source-status-linkedin").textContent).not.toContain("resultado parcial");
+    }
+  });
+
+  it("muestra resultado parcial y permite reintentar LinkedIn", async () => {
+    mocks.search.mockResolvedValueOnce({ searchId: "s2", status: "incomplete", items: [{ id: "jooble:1", title: "Backend Python", company: "Acme", location: "CABA", snippet: "S", url: "https://ar.jooble.org/jdp/1", source: "Jooble", updatedAt: null }], sources: [{ source: "jooble", status: "succeeded", offersCount: 1 }, { source: "linkedin", status: "failed", offersCount: 0, error: "linkedin_failed" }] });
+    mocks.retry.mockResolvedValue({ searchId: "s2", status: "in_progress", items: [], sources: [{ source: "linkedin", status: "running", offersCount: 0 }] });
+    mocks.status.mockResolvedValue({ searchId: "s2", status: "in_progress", items: [], sources: [{ source: "linkedin", status: "running", offersCount: 0 }] });
+    render(<JobsPage />);
+    await screen.findByTestId("jobs-keywords");
+    fireEvent.click(screen.getByTestId("jobs-source-linkedin"));
+    fireEvent.click(screen.getByTestId("jobs-submit"));
+    await screen.findByTestId("job-jooble:1");
+    expect(screen.getByTestId("jobs-source-status-linkedin").textContent).toContain("No se pudo");
+    fireEvent.click(screen.getByTestId("jobs-linkedin-retry"));
+    await waitFor(() => expect(mocks.retry).toHaveBeenCalledWith("user-a", "s2", expect.any(AbortSignal)));
+    await waitFor(() => expect(screen.getByTestId("jobs-source-status-linkedin").textContent).toContain("Buscando"));
+  });
+
+  it("pausa las consultas sin inventar un fallo y permite consultar el estado de nuevo", async () => {
+    const running = {
+      searchId: "long-search", status: "in_progress", items: [liJob],
+      sources: [{ source: "linkedin", status: "running", offersCount: 1 }],
+    };
+    mocks.search.mockResolvedValueOnce(running);
+    mocks.status.mockImplementation(async () => ({ ...running, sources: [...running.sources] }));
+    render(<JobsPage />);
+    await screen.findByTestId("jobs-keywords");
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByTestId("jobs-source-linkedin"));
+    await act(async () => { fireEvent.click(screen.getByTestId("jobs-submit")); });
+    expect(screen.getByTestId("jobs-source-status-linkedin")).toBeTruthy();
+    for (let attempt = 0; attempt < 81; attempt += 1) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    }
+    expect(screen.getByTestId("jobs-poll-paused").textContent).toContain("no indica que LinkedIn haya fallado");
+    expect(screen.getByTestId("jobs-source-status-linkedin").textContent).toContain("Buscando");
+    expect(screen.queryByTestId("jobs-linkedin-retry")).toBeNull();
+    mocks.status.mockResolvedValue({ ...running, status: "complete", sources: [{ source: "linkedin", status: "succeeded", offersCount: 1 }] });
+    fireEvent.click(screen.getByTestId("jobs-refresh-status"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    expect(screen.getByTestId("jobs-source-status-linkedin").textContent).toBe("LinkedIn: 1 ofertas");
+    expect(screen.queryByTestId("jobs-poll-paused")).toBeNull();
+  });
+
   it("propone términos del CV y consulta solo al pulsar Buscar", async () => {
     render(<JobsPage />);
     expect((await screen.findByTestId("jobs-keywords") as HTMLInputElement).value).toBe("Desarrollador backend");

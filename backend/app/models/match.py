@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import Field, field_validator, model_validator
 
 from app.models.cv import StrictModel
+from app.models.jobs import AlternateUrl
 
 Affinity = Literal["Alta", "Media"]
 PROHIBITED_AFFINITY_TEXT = re.compile(
@@ -66,9 +67,14 @@ class MatchRecommendation(StrictModel):
     matches: list[str]
     unmetRequirements: list[str]
     missingInfo: list[str]
+    source: str = "Jooble"
+    alternateUrls: list[AlternateUrl] = Field(default_factory=list)
+    descriptionIsPartial: bool = False
 
 
 class MatchResult(StrictModel):
     resumeChanged: bool
     completedAt: datetime
     recommendations: list[MatchRecommendation] = Field(max_length=3)
+    partial: bool = False
+    canRecalculate: bool = False

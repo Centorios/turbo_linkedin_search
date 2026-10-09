@@ -1,6 +1,6 @@
 import { getBackendUrl } from "./backend-url";
 import { createSupabaseBrowserClient } from "./supabase";
-import type { JobSearchProfile, JobSearchResponse } from "../types/jobs";
+import type { JobSearchProfile, JobSearchResponse, JobSourceName } from "../types/jobs";
 
 export class JobsApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -15,10 +15,18 @@ export function getSearchProfile(userId: string, resumeId: string, signal: Abort
 
 export function searchJobs(
   userId: string,
-  request: { resumeId: string; keywords: string; location: string },
+  request: { resumeId: string; keywords: string; location: string; sources?: JobSourceName[] },
   signal: AbortSignal,
 ): Promise<JobSearchResponse> {
   return requestJobs(userId, "/api/jobs/search", { method: "POST", body: JSON.stringify(request), signal });
+}
+
+export function getSearchStatus(userId: string, searchId: string, signal: AbortSignal): Promise<JobSearchResponse> {
+  return requestJobs(userId, `/api/jobs/search/${encodeURIComponent(searchId)}/status`, { method: "GET", signal });
+}
+
+export function retryLinkedIn(userId: string, searchId: string, signal: AbortSignal): Promise<JobSearchResponse> {
+  return requestJobs(userId, `/api/jobs/search/${encodeURIComponent(searchId)}/sources/linkedin/retry`, { method: "POST", signal });
 }
 
 export async function warmBackend(signal: AbortSignal): Promise<void> {

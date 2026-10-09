@@ -46,6 +46,9 @@ class PersistenceJobSearchRepository:
             return []
         return deepcopy(self.offers)
 
+    def list_source_runs(self, user_id, search_id):
+        return []
+
     def save_offer_embeddings(self, vectors):
         for offer in self.offers:
             if offer["id"] in vectors:
