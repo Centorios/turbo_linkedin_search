@@ -2,7 +2,7 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from app.core.auth import require_user_id
 from app.models.cv import StructuredCv
@@ -52,6 +52,26 @@ async def get_resume(
     return document
 
 
+@router.delete("/{resume_id}", status_code=204)
+async def delete_resume(
+    resume_id: UUID,
+    user_id: Annotated[str, Depends(require_user_id)],
+    repository: Annotated[ResumeRepository, Depends(get_resume_repository)],
+) -> Response:
+    try:
+        deleted = repository.delete_by_id(user_id, str(resume_id))
+    except Exception as exc:
+        raise _delete_error(exc) from exc
+    if not deleted:
+        raise HTTPException(status_code=404, detail={"code": "resume_not_found", "message": "El CV no está disponible"})
+    return Response(status_code=204)
+
+
 def _read_error(exc: Exception) -> HTTPException:
     logger.error("resume_history_read_failed", extra={"error_type": type(exc).__name__})
     return HTTPException(status_code=500, detail={"code": "resume_read_failed", "message": "No se pudo cargar el historial de CVs. Inténtalo de nuevo."})
+
+
+def _delete_error(exc: Exception) -> HTTPException:
+    logger.error("resume_history_delete_failed", extra={"error_type": type(exc).__name__})
+    return HTTPException(status_code=500, detail={"code": "resume_delete_failed", "message": "No se pudo eliminar el CV. Inténtalo de nuevo."})

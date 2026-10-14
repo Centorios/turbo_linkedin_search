@@ -81,6 +81,13 @@ admin. El detalle ajeno responde igual que uno inexistente. Las lecturas validan
 JSON almacenado sin llamar a Azure. No hace falta una migración adicional si ya está
 aplicada `001_create_resumes.sql`.
 
+Desde cada versión del historial se puede solicitar su eliminación permanente.
+`DELETE /api/resumes/{id}` requiere sesión, valida la propiedad y responde igual para
+un ID ajeno o inexistente. Antes de enviar la petición, la interfaz informa que también
+se eliminarán las búsquedas y los resultados de matching asociados; las relaciones
+existentes aplican la cascada. No se eliminan el perfil ni las fotos compartidas. Si la
+operación falla, el CV permanece visible y puede reintentarse.
+
 Las fotos antiguas pueden haber sido eliminadas; en ese caso se mantiene el texto y
 la descarga funciona sin foto. La UI descarta solicitudes pendientes al cambiar de
 cuenta y los datos no se guardan en almacenamiento del navegador.

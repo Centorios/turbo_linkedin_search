@@ -37,6 +37,7 @@ class MemoryQuery:
         self.bounds = None
         self.single = False
         self.new_row = None
+        self.deleting = False
 
     def select(self, fields):
         return self
@@ -61,6 +62,10 @@ class MemoryQuery:
         self.new_row = data
         return self
 
+    def delete(self):
+        self.deleting = True
+        return self
+
     def execute(self):
         if self.client.fail:
             raise RuntimeError("private-storage-secret")
@@ -69,6 +74,9 @@ class MemoryQuery:
             self.client.rows.append(row)
             return SimpleNamespace(data=[deepcopy(row)])
         rows = [row for row in self.client.rows if all(row[field] == value for field, value in self.filters)]
+        if self.deleting:
+            self.client.rows = [row for row in self.client.rows if row not in rows]
+            return SimpleNamespace(data=[{"id": row["id"]} for row in rows])
         for field, descending in reversed(self.orders):
             rows = sorted(rows, key=lambda row: row[field], reverse=descending)
         if self.bounds:
@@ -136,6 +144,59 @@ def test_detail_requires_owner_and_returns_original_snapshot(context):
     assert foreign.status_code == missing.status_code == 404
     assert foreign.json() == missing.json()
     assert all(("user_id", USER_A) in query.filters for query in storage.queries)
+
+def test_delete_resume_removes_only_the_selected_owned_record(context):
+    client, storage, _ = context
+    storage.rows = [record(1), record(2)]
+
+    response = client.delete(f"/api/resumes/{record(1)['id']}", headers=auth())
+
+    assert response.status_code == 204
+    assert response.content == b""
+    delete_query = next(query for query in storage.queries if query.deleting)
+    assert ("user_id", USER_A) in delete_query.filters
+    assert ("id", record(1)["id"]) in delete_query.filters
+    listed = client.get("/api/resumes", headers=auth()).json()
+    assert [item["id"] for item in listed["items"]] == [record(2)["id"]]
+    assert client.get(f"/api/resumes/{record(1)['id']}", headers=auth()).status_code == 404
+
+
+def test_delete_foreign_and_missing_resumes_are_indistinguishable(context):
+    client, storage, _ = context
+    storage.rows = [record(1), record(2, USER_B)]
+
+    foreign = client.delete(f"/api/resumes/{record(2, USER_B)['id']}", headers=auth())
+    missing = client.delete(f"/api/resumes/{str(UUID(int=999))}", headers=auth())
+
+    assert foreign.status_code == missing.status_code == 404
+    assert foreign.json() == missing.json()
+    assert storage.rows == [record(1), record(2, USER_B)]
+    delete_queries = [query for query in storage.queries if query.deleting]
+    assert len(delete_queries) == 2
+    assert all(("user_id", USER_A) in query.filters for query in delete_queries)
+    assert all(("id", resume_id) in query.filters for query, resume_id in zip(delete_queries, [record(2, USER_B)["id"], str(UUID(int=999))]))
+
+
+def test_delete_requires_authentication_before_querying_storage(context):
+    client, storage, _ = context
+
+    response = client.delete(f"/api/resumes/{record(1)['id']}")
+
+    assert response.status_code == 401
+    assert not storage.queries
+
+
+def test_delete_storage_failure_returns_safe_error_and_keeps_record(context):
+    client, storage, _ = context
+    storage.rows = [record(1)]
+    storage.fail = True
+
+    response = client.delete(f"/api/resumes/{record(1)['id']}", headers=auth())
+
+    assert response.status_code == 500
+    assert response.json()["detail"]["code"] == "resume_delete_failed"
+    assert "private-storage-secret" not in response.text
+    assert storage.rows == [record(1)]
 
 
 @pytest.mark.parametrize("path", ["/api/resumes", f"/api/resumes/{str(UUID(int=1))}"])
