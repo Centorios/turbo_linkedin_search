@@ -46,6 +46,19 @@ class ResumeRepository:
         )
         return response.data if response is not None else None
 
+    def delete_by_id(self, user_id: str, resume_id: str) -> bool:
+        response = (
+            self.client.table("resumes")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("id", resume_id)
+            .select("id")
+            .execute()
+        )
+        if response is None or response.data is None:
+            raise RuntimeError("Resume history deletion returned no data")
+        return bool(response.data)
+
     def create(self, user_id: str, request_id: str, data: dict[str, Any]) -> dict[str, Any]:
         response = (
             self.client.table("resumes")

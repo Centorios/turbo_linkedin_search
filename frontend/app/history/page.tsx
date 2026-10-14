@@ -8,9 +8,9 @@ import { CvPreview, type CvTemplate } from "../components/cv-preview";
 import { TemplateSelector } from "../components/template-selector";
 import { PdfDownload } from "../components/pdf-download";
 import { DocumentIcon, SpinnerIcon } from "../components/icons";
-import { getResume, listResumes } from "../lib/resume-history-client";
+import { deleteResume, getResume, listResumes } from "../lib/resume-history-client";
 import { getProfilePhotoUrl } from "../lib/profile-photo-client";
-import type { ResumeDetail, ResumeHistoryPage } from "../types/resume-history";
+import type { ResumeDetail, ResumeHistoryPage, ResumeSummary } from "../types/resume-history";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -37,7 +37,10 @@ function AccountHistory({ userId }: { userId: string }) {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [template, setTemplate] = useState<CvTemplate>("ats");
   const [photoMissing, setPhotoMissing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const detailRequest = useRef<AbortController | null>(null);
+  const deleteRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -51,7 +54,48 @@ function AccountHistory({ userId }: { userId: string }) {
     return () => controller.abort();
   }, [userId, offset, reload]);
 
-  useEffect(() => () => detailRequest.current?.abort(), []);
+  useEffect(() => () => {
+    detailRequest.current?.abort();
+    deleteRequest.current?.abort();
+  }, []);
+
+  async function removeResume(item: ResumeSummary) {
+    if (deletingId) return;
+    const name = item.fullName || "CV sin nombre";
+    const confirmed = window.confirm(`¿Eliminar permanentemente el CV de ${name}? Esta acción no se puede deshacer y también eliminará las búsquedas de empleo y los resultados de matching asociados.`);
+    if (!confirmed) return;
+
+    const controller = new AbortController();
+    deleteRequest.current = controller;
+    setDeletingId(item.id);
+    setDeleteError(null);
+    try {
+      await deleteResume(userId, item.id, controller.signal);
+      if (controller.signal.aborted) return;
+      if (selectedId === item.id) {
+        detailRequest.current?.abort();
+        detailRequest.current = null;
+        setSelectedId(null);
+        setDetail(null);
+        setDetailError(null);
+        setDetailLoading(false);
+      }
+      const remaining = page?.items.filter((resume) => resume.id !== item.id) ?? [];
+      if (page && remaining.length === 0 && offset > 0) {
+        setOffset(Math.max(0, offset - 20));
+      } else {
+        setPage((current) => current ? { ...current, items: current.items.filter((resume) => resume.id !== item.id) } : current);
+        if (page?.hasMore) setReload((value) => value + 1);
+      }
+    } catch (failure) {
+      if (!controller.signal.aborted) {
+        setDeleteError(failure instanceof Error ? failure.message : "No se pudo eliminar el CV. Inténtalo de nuevo.");
+      }
+    } finally {
+      if (deleteRequest.current === controller) deleteRequest.current = null;
+      if (!controller.signal.aborted) setDeletingId(null);
+    }
+  }
 
   async function openResume(id: string) {
     detailRequest.current?.abort();
@@ -94,9 +138,13 @@ function AccountHistory({ userId }: { userId: string }) {
           <section aria-label="Versiones guardadas" className="rounded-xl border border-border bg-surface p-5 shadow-sm lg:col-span-4">
             <h2 className="text-headline-lg">Versiones guardadas</h2>
             <p className="mt-1 text-caption-xs text-text-muted">De la más reciente a la más antigua</p>
+            {deleteError && <p role="alert" data-testid="history-delete-error" className="mt-4 rounded-lg bg-danger-surface p-3 text-body-sm text-danger">{deleteError} Puedes volver a intentarlo.</p>}
             {loading ? <p role="status" data-testid="history-loading" className="mt-6 flex items-center gap-2 text-body-sm text-text-muted"><SpinnerIcon className="h-4 w-4" />Cargando tu historial...</p> : error ? <div className="mt-4"><p role="alert" data-testid="history-error" className="rounded-lg bg-danger-surface p-3 text-body-sm text-danger">{error}</p><button type="button" data-testid="history-retry" onClick={() => setReload((value) => value + 1)} className="focus-ring mt-3 rounded-lg border border-border px-3 py-2 text-body-sm font-semibold">Reintentar</button></div> : page?.items.length ? (
               <ul className="mt-4 flex flex-col gap-3">
-                {page.items.map((item) => <li key={item.id}><button type="button" aria-pressed={selectedId === item.id} data-testid={`history-item-${item.id}`} onClick={() => void openResume(item.id)} className={`focus-ring w-full rounded-xl border p-4 text-left transition-colors ${selectedId === item.id ? "border-primary bg-subtle" : "border-border hover:bg-subtle"}`}><span className="block break-words text-body-sm font-semibold">{item.fullName || "CV sin nombre"}</span><time dateTime={item.createdAt} className="mt-1 block text-caption-xs text-text-muted">{formatDate(item.createdAt)}</time><span className="mt-2 line-clamp-2 break-words text-caption-xs text-text-muted">{item.summary || "Versión guardada de tu currículum"}</span></button></li>)}
+                {page.items.map((item) => <li key={item.id} className="flex flex-col gap-2 sm:flex-row">
+                  <button type="button" aria-pressed={selectedId === item.id} data-testid={`history-item-${item.id}`} onClick={() => void openResume(item.id)} className={`focus-ring min-w-0 flex-1 rounded-xl border p-4 text-left transition-colors ${selectedId === item.id ? "border-primary bg-subtle" : "border-border hover:bg-subtle"}`}><span className="block break-words text-body-sm font-semibold">{item.fullName || "CV sin nombre"}</span><time dateTime={item.createdAt} className="mt-1 block text-caption-xs text-text-muted">{formatDate(item.createdAt)}</time><span className="mt-2 line-clamp-2 break-words text-caption-xs text-text-muted">{item.summary || "Versión guardada de tu currículum"}</span></button>
+                  <button type="button" aria-label={`Eliminar CV de ${item.fullName || "CV sin nombre"}`} data-testid={`history-delete-${item.id}`} disabled={deletingId !== null} onClick={() => void removeResume(item)} className="focus-ring rounded-lg border border-danger px-3 py-2 text-body-sm font-semibold text-danger disabled:opacity-50">{deletingId === item.id ? "Eliminando..." : "Eliminar"}</button>
+                </li>)}
               </ul>
             ) : <p data-testid="history-empty" className="mt-6 text-body-sm text-text-muted">{offset ? "No hay más versiones en esta página." : "Aún no tienes CVs guardados. Genera tu primer CV para verlo aquí."}</p>}
             <nav aria-label="Páginas del historial" className="mt-5 flex items-center justify-between gap-2">
