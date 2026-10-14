@@ -69,6 +69,44 @@ async def test_turns_resend_source_and_confirmed_answers_in_order() -> None:
 
 
 @pytest.mark.asyncio
+async def test_invalid_proposal_does_not_reject_other_valid_proposals() -> None:
+    evidence = "Usé HTML, CSS y algo de JavaScript."
+    provider = FakeAssistanceProvider(
+        results=[
+            {
+                "state": "ready",
+                "proposals": [
+                    {
+                        "proposalId": "p1",
+                        "kind": "competency",
+                        "text": "Desarrollo web básico",
+                        "competencyType": "hard",
+                        "evidence": [evidence],
+                    },
+                    {
+                        "proposalId": "p2",
+                        "kind": "achievement",
+                        "text": "Implementé una página web",
+                        "competencyType": "hard",
+                        "evidence": [evidence],
+                    },
+                ],
+                "developmentRecommendations": [],
+            }
+        ]
+    )
+    service = TrajectoryAssistanceService(provider=provider)
+
+    result = await service.assist(
+        "user-1",
+        AssistanceTurnRequest.model_validate({"sourceText": evidence, "answers": []}),
+    )
+
+    assert result.state == "ready"
+    assert [proposal.proposalId for proposal in result.proposals] == ["p1"]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("source_text", "answer", "evidence"),
     [

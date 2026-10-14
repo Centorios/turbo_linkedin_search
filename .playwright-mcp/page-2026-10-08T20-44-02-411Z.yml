@@ -1,0 +1,82 @@
+- generic [active] [ref=f6e1]:
+  - button "Open Next.js Dev Tools" [ref=f6e9] [cursor=pointer]
+  - alert [ref=f6e13]
+  - generic [ref=f6e14]:
+    - banner [ref=f6e15]:
+      - generic [ref=f6e16]:
+        - img "CV8" [ref=f6e17]
+        - navigation "Navegación de cuenta" [ref=f6e18]:
+          - link "Crear CV" [ref=f6e19] [cursor=pointer]:
+            - /url: /generate
+          - link "Historial" [ref=f6e20] [cursor=pointer]:
+            - /url: /history
+          - link "Empleos" [ref=f6e21] [cursor=pointer]:
+            - /url: /jobs
+        - button "Cerrar sesión" [ref=f6e23]
+    - main [ref=f6e24]:
+      - generic [ref=f6e25]:
+        - paragraph [ref=f6e26]: Oportunidades
+        - heading "Empleos desde tu CV" [level=1] [ref=f6e27]
+        - paragraph [ref=f6e28]: Usa tu experiencia para iniciar una búsqueda de ofertas en Argentina. Revisa los términos antes de consultar.
+      - generic [ref=f6e29]:
+        - region "Preparar búsqueda" [ref=f6e30]:
+          - heading "Preparar búsqueda" [level=2] [ref=f6e31]
+          - generic [ref=f6e32]: CV de referencia
+          - combobox "CV de referencia" [ref=f6e33]:
+            - option "Ana García · 7/10/2026" [selected]
+          - generic [ref=f6e34]:
+            - generic [ref=f6e35]:
+              - generic [ref=f6e36]: Puesto o palabras clave
+              - textbox "Puesto o palabras clave" [ref=f6e37]:
+                - /placeholder: "Ej.: Desarrollador backend"
+                - text: Desarrolladora Python
+            - paragraph [ref=f6e38]: "Habilidades de este CV: Python"
+            - generic [ref=f6e39]:
+              - generic [ref=f6e40]: Ubicación en Argentina
+              - textbox "Ubicación en Argentina" [ref=f6e41]:
+                - /placeholder: "Ej.: Buenos Aires"
+                - text: Argentina
+            - button "Buscar empleos" [ref=f6e42]
+        - region "Ofertas laborales" [ref=f6e43]:
+          - generic [ref=f6e47]:
+            - paragraph [ref=f6e48]: "1 ofertas encontradas · Fuente: Jooble"
+            - list [ref=f6e49]:
+              - listitem [ref=f6e50]:
+                - generic [ref=f6e51]:
+                  - generic [ref=f6e52]:
+                    - heading "Desarrolladora Python" [level=2] [ref=f6e53]
+                    - paragraph [ref=f6e54]: Acme · Argentina
+                  - generic [ref=f6e55]: Jooble
+                - paragraph [ref=f6e56]: Python y FastAPI
+                - link "Ver oferta" [ref=f6e57] [cursor=pointer]:
+                  - /url: https://example.test/oferta-python
+            - region "Recomendaciones Match" [ref=f6e58]:
+              - heading "Match" [level=2] [ref=f6e59]
+              - paragraph [ref=f6e60]: Recibí hasta tres recomendaciones de las ofertas encontradas que mejor se adapten a tu perfil profesional
+              - paragraph [ref=f6e61]: Render puede tardar cerca de un minuto en reactivar el servicio tras un período sin actividad. Si el análisis supera el tiempo de espera, podrás reintentarlo.
+              - generic [ref=f6e62]:
+                - button "Match" [ref=f6e63]
+                - button "Recalcular" [ref=f6e64]
+              - status [ref=f6e65]: Análisis completado.
+              - list [ref=f6e66]:
+                - listitem [ref=f6e67]:
+                  - generic [ref=f6e68]:
+                    - generic [ref=f6e69]:
+                      - heading "Desarrolladora Python" [level=3] [ref=f6e70]
+                      - paragraph [ref=f6e71]: Acme · Argentina
+                    - generic [ref=f6e72]: Afinidad Alta
+                  - paragraph [ref=f6e73]: Tu experiencia coincide con el puesto.
+                  - generic [ref=f6e74]:
+                    - generic [ref=f6e75]:
+                      - heading "Coincidencias" [level=4] [ref=f6e76]
+                      - list [ref=f6e77]:
+                        - listitem [ref=f6e78]: Python
+                    - generic [ref=f6e79]:
+                      - heading "Requisitos no acreditados" [level=4] [ref=f6e80]
+                      - list [ref=f6e81]:
+                        - listitem [ref=f6e82]: Experiencia con Kubernetes
+                    - generic [ref=f6e83]:
+                      - heading "Información faltante" [level=4] [ref=f6e84]
+                      - paragraph [ref=f6e85]: No se identificó información faltante.
+                  - link "Ver oferta" [ref=f6e86] [cursor=pointer]:
+                    - /url: https://example.test/oferta-python

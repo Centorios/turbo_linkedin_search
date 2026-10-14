@@ -108,14 +108,69 @@ reducir peticiones repetidas. La caché se pierde al reiniciar o cambiar de inst
 Los endpoints son `GET /api/jobs/search-profile/{resume_id}` y
 `POST /api/jobs/search`. Ambos requieren un bearer de Supabase y acceso al CV. El
 segundo acepta `resumeId`, `keywords` y `location`, y devuelve hasta 20 ofertas sin
-duplicados. La búsqueda no ejecuta scraping ni calcula afinidad semántica; el
-historial, los favoritos y el matching quedan para entregas posteriores. Las pruebas
-del conector usan un transporte HTTP simulado y no consumen la cuota del proveedor.
+duplicados. La respuesta incluye `searchId` cuando se pudo persistir el conjunto de
+ofertas; si falla esa persistencia, la búsqueda sigue disponible, pero Match no puede
+analizarla. Las pruebas del conector usan un transporte HTTP simulado y no consumen la
+cuota del proveedor.
 
 Pruebas específicas: `tests/contract/test_jobs_api.py` y
 `frontend/tests/jobs.test.tsx`. Para comprobar resultados reales hace falta una
 clave regional válida y una consulta manual como en
 [`specs/006-cv-job-search/quickstart.md`](../specs/006-cv-job-search/quickstart.md).
+
+## Match de ofertas
+
+En `/jobs`, después de buscar, se puede seleccionar un CV guardado y pulsar **Match**
+para analizar únicamente las ofertas de esa búsqueda. No se vuelve a consultar Jooble.
+El backend genera o reutiliza embeddings del CV y las ofertas con un deployment de
+Azure OpenAI independiente del modelo de chat, compara los vectores mediante
+`pgvector` y pide al modelo de chat hasta tres recomendaciones cualitativas (Alta o
+Media) con coincidencias, requisitos no acreditados e información faltante. No se
+presentan porcentajes ni probabilidades de contratación.
+
+El análisis es sincrónico. `POST /api/jobs/match` calcula y guarda el resultado; si ya
+existe uno, lo devuelve salvo que se solicite recalcular. `GET
+/api/jobs/match/{searchId}?resumeId={resumeId}` recupera el resultado persistido.
+Un fallo o timeout conserva el resultado anterior, y las llamadas simultáneas para la
+misma búsqueda y CV se rechazan. Al volver a `/jobs`, la interfaz puede mostrar el
+resultado guardado; si el CV cambió desde el análisis, lo indica antes de recalcular.
+
+### Configuración de Match
+
+El backend requiere `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` (deployment de embeddings,
+por defecto `text-embedding-3-small`) y `AZURE_OPENAI_EMBEDDING_DIMENSIONS` (por
+defecto `1536`). El deployment debe estar disponible en el recurso Azure configurado.
+Los límites operativos, expresados en segundos salvo `MATCH_CANDIDATES_K`, son:
+
+| Variable | Valor por defecto | Uso |
+|---|---:|---|
+| `MATCH_DEADLINE_SECONDS` | `75` | Tiempo máximo total del análisis |
+| `MATCH_EMBEDDINGS_TIMEOUT_SECONDS` | `20` | Timeout de la llamada de embeddings |
+| `MATCH_LLM_TIMEOUT_SECONDS` | `45` | Timeout del análisis con el modelo de chat |
+| `MATCH_CANDIDATES_K` | `8` | Máximo de candidatos pgvector enviados al análisis |
+
+El cliente cancela la petición después de 85 segundos. En Render free, un arranque en
+frío puede consumir parte del límite total; `/jobs` muestra el aviso correspondiente
+y solicita `/health` al abrir la pantalla. `backend/.env.example` contiene los valores
+locales de referencia. Configura los mismos valores no secretos en el entorno de
+Render; las claves de Azure y Supabase deben seguir siendo secretos gestionados allí,
+nunca valores versionados.
+
+### Migraciones de Match
+
+Aplicar en Supabase y en este orden, antes de ejecutar Match:
+
+1. `004_enable_pgvector.sql`: habilita la extensión `vector`.
+2. `005_job_searches.sql`: crea las búsquedas persistidas y sus ofertas.
+3. `006_match_results.sql`: crea los embeddings reutilizables, resultados y
+   recomendaciones.
+4. `007_match_functions.sql`: crea las funciones de búsqueda vectorial, guardado
+   atómico y bloqueo de análisis concurrentes.
+
+Las tablas nuevas están aisladas por usuario mediante RLS; el backend también filtra
+por el usuario autenticado. Aplicar las migraciones antes de probar el flujo. Para el
+procedimiento de validación y los escenarios esperados, consultar
+[`specs/007-job-match-recommendations/quickstart.md`](../specs/007-job-match-recommendations/quickstart.md).
 
 ## Despliegue conjunto en Vercel Services
 
@@ -129,7 +184,11 @@ Definir en Vercel `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 para el navegador. El backend requiere `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `AZURE_OPENAI_ENDPOINT`,
 `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_API_VERSION` y `AZURE_OPENAI_DEPLOYMENT`.
-Para habilitar la búsqueda de empleos agregar `JOOBLE_AR_API_KEY` solo al backend.
+Para habilitar la búsqueda de empleos agrega `JOOBLE_AR_API_KEY` solo al backend.
+Para Match, configura además `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` y
+`AZURE_OPENAI_EMBEDDING_DIMENSIONS`; usa `MATCH_DEADLINE_SECONDS`,
+`MATCH_EMBEDDINGS_TIMEOUT_SECONDS`, `MATCH_LLM_TIMEOUT_SECONDS` y
+`MATCH_CANDIDATES_K` para mantener los límites operativos documentados arriba.
 No subir secretos al repositorio. Sin `NEXT_PUBLIC_BACKEND_URL`, el frontend
 llama a `/api/*` en el mismo dominio; esa variable solo hace falta si se usa un
 backend externo, como el servicio de Render. Tras cambiar la configuración,

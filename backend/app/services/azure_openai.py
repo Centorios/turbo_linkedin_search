@@ -41,6 +41,17 @@ Only use competencyType for competency proposals. Never present a development re
 Do not put proposals in needs_input results. Do not include fields other than those shown, markdown, or commentary."""
 
 
+MATCH_SYSTEM_PROMPT = """You recommend up to three job offers for a person, using only the provided resume JSON and candidate offers.
+Never invent experience, skills, credentials or job requirements. If an offer lacks information needed to evaluate it, list that in missingInfo.
+If the resume does not establish whether a requirement is met, do not assume it is; list the requirement in unmetRequirements and identify the missing evidence in missingInfo.
+Explicitly identify unavailable or insufficient information in missingInfo rather than filling gaps with assumptions.
+Only recommend offers that are reasonably suitable; return fewer than three or an empty list if none fit.
+Return exactly one JSON object:
+{"recommendations":[{"offerId":"<id of a provided candidate>","affinity":"Alta|Media","summary":"...","matches":["..."],"unmetRequirements":["requirements of the offer not evidenced in the resume"],"missingInfo":["..."]}]}
+offerId must be one of the provided candidates, without repeats. Order from best to worst fit.
+Do not give percentages or hiring probability. No markdown, commentary or extra fields. Write in Spanish."""
+
+
 class AzureOpenAIError(Exception):
     """A provider failure that is safe to expose as a generic upstream error."""
 
@@ -66,7 +77,47 @@ class AzureOpenAIProvider:
             ]
         )
 
-    async def _request_json(self, messages: list[dict[str, str]]) -> dict[str, Any]:
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        """Embeddings en un único lote; devuelve los vectores en el orden de entrada."""
+        if not texts:
+            return []
+        endpoint = self.settings.azure_openai_endpoint.rstrip("/")
+        deployment = quote(self.settings.azure_openai_embedding_deployment, safe="")
+        url = (
+            f"{endpoint}/openai/deployments/{deployment}/embeddings"
+            f"?api-version={quote(self.settings.azure_openai_api_version, safe='')}"
+        )
+        payload = {"input": texts, "dimensions": self.settings.azure_openai_embedding_dimensions}
+        timeout = self.settings.match_embeddings_timeout_seconds
+        try:
+            if self.client is None:
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    response = await client.post(url, headers=self._headers(), json=payload)
+            else:
+                response = await self.client.post(url, headers=self._headers(), json=payload, timeout=timeout)
+            response.raise_for_status()
+            items = sorted(response.json()["data"], key=lambda item: item["index"])
+            vectors = [[float(x) for x in item["embedding"]] for item in items]
+        except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
+            raise AzureOpenAIError("Azure OpenAI embeddings request failed") from exc
+        dims = self.settings.azure_openai_embedding_dimensions
+        if len(vectors) != len(texts) or any(len(v) != dims for v in vectors):
+            raise AzureOpenAIError("Azure OpenAI embeddings response has unexpected shape")
+        return vectors
+
+    async def analyze_match(self, resume: dict[str, Any], candidates: list[dict[str, Any]]) -> dict[str, Any]:
+        return await self._request_json(
+            [
+                {"role": "system", "content": MATCH_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": json.dumps({"resume": resume, "candidates": candidates}, ensure_ascii=False),
+                },
+            ],
+            timeout=self.settings.match_llm_timeout_seconds,
+        )
+
+    async def _request_json(self, messages: list[dict[str, str]], timeout: float = 60) -> dict[str, Any]:
         endpoint = self.settings.azure_openai_endpoint.rstrip("/")
         deployment = quote(self.settings.azure_openai_deployment, safe="")
         url = (
@@ -81,7 +132,7 @@ class AzureOpenAIProvider:
 
         try:
             if self.client is None:
-                async with httpx.AsyncClient(timeout=60) as client:
+                async with httpx.AsyncClient(timeout=timeout) as client:
                     response = await client.post(url, headers=self._headers(), json=payload)
             else:
                 response = await self.client.post(url, headers=self._headers(), json=payload)

@@ -173,7 +173,7 @@ test.describe("Perfil básico después del inicio de sesión", () => {
     await installSupabaseMocks(page, new Map(), { profileReadFailures: 1 });
     await signIn(page);
 
-    await expect(page.getByRole("alert")).toContainText("No se pudo cargar el perfil");
+    await expect(page.getByTestId("profile-load-error")).toContainText("No se pudo cargar el perfil");
     await expect(page.getByRole("button", { name: "Generar CV" })).toBeDisabled();
     await page.getByRole("button", { name: "Reintentar" }).click();
     await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toBeVisible();

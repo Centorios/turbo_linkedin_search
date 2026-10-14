@@ -1,0 +1,43 @@
+- generic [active] [ref=f3e1]:
+  - button "Open Next.js Dev Tools" [ref=f3e43] [cursor=pointer]
+  - alert [ref=f3e47]
+  - generic [ref=f3e221]:
+    - banner [ref=f3e222]:
+      - generic [ref=f3e223]:
+        - img "CV8" [ref=f3e224]
+        - navigation "Navegación de cuenta" [ref=f3e225]:
+          - link "Crear CV" [ref=f3e226] [cursor=pointer]:
+            - /url: /generate
+          - link "Historial" [ref=f3e227] [cursor=pointer]:
+            - /url: /history
+          - link "Empleos" [ref=f3e228] [cursor=pointer]:
+            - /url: /jobs
+        - button "Cerrar sesión" [ref=f3e230]
+    - main [ref=f3e231]:
+      - generic [ref=f3e232]:
+        - paragraph [ref=f3e233]: Oportunidades
+        - heading "Empleos desde tu CV" [level=1] [ref=f3e234]
+        - paragraph [ref=f3e235]: Usa tu experiencia para iniciar una búsqueda de ofertas en Argentina. Revisa los términos antes de consultar.
+      - generic [ref=f3e236]:
+        - region "Preparar búsqueda" [ref=f3e237]:
+          - heading "Preparar búsqueda" [level=2] [ref=f3e238]
+          - generic [ref=f3e239]: CV de referencia
+          - combobox "CV de referencia" [ref=f3e240]:
+            - option "Ana García · 7/10/2026" [selected]
+          - generic [ref=f3e241]:
+            - generic [ref=f3e242]:
+              - generic [ref=f3e243]: Puesto o palabras clave
+              - textbox "Puesto o palabras clave" [ref=f3e244]:
+                - /placeholder: "Ej.: Desarrollador backend"
+                - text: Desarrolladora Python
+            - paragraph [ref=f3e245]: "Habilidades de este CV: Python"
+            - generic [ref=f3e246]:
+              - generic [ref=f3e247]: Ubicación en Argentina
+              - textbox "Ubicación en Argentina" [ref=f3e248]:
+                - /placeholder: "Ej.: Buenos Aires"
+                - text: Argentina
+            - button "Buscar empleos" [ref=f3e249]
+        - region "Ofertas laborales" [ref=f3e250]:
+          - generic [ref=f3e251]:
+            - paragraph [ref=f3e252]: Tus ofertas aparecerán aquí
+            - paragraph [ref=f3e253]: Elige un CV, ajusta la búsqueda y pulsa “Buscar empleos”.

@@ -1,0 +1,36 @@
+- main [ref=f21e2]:
+  - generic [ref=f21e3]:
+    - generic [ref=f21e5]:
+      - generic [ref=f21e6]: TU PRÓXIMO CAPÍTULO
+      - heading "Tu experiencia merece un gran currículum." [level=2] [ref=f21e7]: Tu experiencia mereceun gran currículum.
+      - paragraph [ref=f21e8]: Dale forma a tu historia profesional. La IA te ayuda a convertir lo que sabes hacer en un CV claro, listo para compartir.
+      - list [ref=f21e9]:
+        - listitem [ref=f21e10]:
+          - generic [ref=f21e11]: "01"
+          - text: Cuenta tu trayectoria
+        - listitem [ref=f21e12]:
+          - generic [ref=f21e13]: "02"
+          - text: Revisa y elige tu estilo
+        - listitem [ref=f21e14]:
+          - generic [ref=f21e15]: "03"
+          - text: Descarga tu CV en PDF
+      - paragraph [ref=f21e16]: Tu historia. Tu estilo. Tu siguiente oportunidad.
+    - generic [ref=f21e17]:
+      - img "CV8" [ref=f21e18]
+      - heading "Bienvenido a CV8" [level=1] [ref=f21e19]
+      - paragraph [ref=f21e20]: Accede para generar tu currículum con IA
+      - tablist "Tipo de acceso" [ref=f21e21]:
+        - tab "Iniciar sesión" [selected] [ref=f21e22]
+        - tab "Crear cuenta" [ref=f21e23]
+      - generic [ref=f21e25]:
+        - generic [ref=f21e26]:
+          - generic [ref=f21e27]: Correo electrónico
+          - textbox "Correo electrónico" [ref=f21e28]:
+            - /placeholder: nombre@ejemplo.com
+        - generic [ref=f21e29]:
+          - generic [ref=f21e30]: Contraseña
+          - generic [ref=f21e31]:
+            - textbox "Contraseña" [ref=f21e32]:
+              - /placeholder: ••••••••
+            - button "Mostrar entrada" [ref=f21e33]
+        - button "Iniciar sesión" [ref=f21e37]

@@ -1,0 +1,69 @@
+- generic [ref=f3e1]:
+  - button "Open Next.js Dev Tools" [ref=f3e43] [cursor=pointer]
+  - alert [ref=f3e47]
+  - generic [ref=f3e139]:
+    - banner [ref=f3e140]:
+      - generic [ref=f3e141]:
+        - img "CV8" [ref=f3e142]
+        - navigation "Navegación de cuenta" [ref=f3e143]:
+          - link "Crear CV" [ref=f3e144] [cursor=pointer]:
+            - /url: /generate
+          - link "Historial" [ref=f3e145] [cursor=pointer]:
+            - /url: /history
+          - link "Empleos" [ref=f3e146] [cursor=pointer]:
+            - /url: /jobs
+        - button "Cerrar sesión" [ref=f3e148]
+    - dialog [ref=f3e150]:
+      - banner [ref=f3e151]:
+        - heading "Completa tu perfil básico" [level=2] [ref=f3e152]
+        - paragraph [ref=f3e153]: Estos datos se usarán en la información personal de tus CVs. Puedes completarlos ahora o más tarde.
+      - generic [ref=f3e154]:
+        - generic [ref=f3e155]:
+          - generic [ref=f3e156]: Nombre completo *
+          - textbox "Nombre completo" [active] [ref=f3e157]
+        - generic [ref=f3e158]:
+          - generic [ref=f3e159]: Correo para el CV
+          - textbox "Correo para el CV" [ref=f3e160]: testqe2e@example.test
+        - generic [ref=f3e161]:
+          - generic [ref=f3e162]: Teléfono
+          - textbox "Teléfono" [ref=f3e163]
+        - generic [ref=f3e164]:
+          - generic [ref=f3e165]: Ubicación
+          - textbox "Ubicación" [ref=f3e166]
+        - generic [ref=f3e167]:
+          - generic [ref=f3e168]: Perfil de LinkedIn
+          - textbox "Perfil de LinkedIn" [ref=f3e169]
+        - generic [ref=f3e170]:
+          - generic [ref=f3e171]: Sitio web
+          - textbox "Sitio web" [ref=f3e172]
+        - generic [ref=f3e173]:
+          - generic [ref=f3e174]: Foto de perfil (opcional)
+          - button "Foto de perfil (opcional)" [ref=f3e175]
+          - paragraph [ref=f3e176]: JPEG, PNG o WebP; máximo 5 MB.
+        - generic [ref=f3e177]:
+          - button "Completar más tarde" [ref=f3e178]
+          - button "Guardar perfil" [ref=f3e179]
+    - main [ref=f3e180]:
+      - generic [ref=f3e182]:
+        - generic [ref=f3e183]:
+          - paragraph [ref=f3e184]: Tu espacio profesional
+          - heading "Dale impulso a tu próxima oportunidad." [level=2] [ref=f3e185]
+          - paragraph [ref=f3e186]: Cuenta tu experiencia, revisa el resultado y crea un CV que hable por ti.
+        - generic [ref=f3e187]: ATS + diseño visual
+      - generic [ref=f3e188]:
+        - generic [ref=f3e190]:
+          - heading "Tu experiencia profesional" [level=1] [ref=f3e192]
+          - paragraph [ref=f3e193]: Pega tu biografía o historia laboral en texto libre; la convertimos en un CV estructurado.
+          - paragraph [ref=f3e198]: Cuanta más información incluyas (años, empresas, logros con números, formación e idiomas), mejor será el resultado.
+          - generic [ref=f3e199]:
+            - generic [ref=f3e200]: Biografía o experiencia profesional
+            - textbox "Biografía o experiencia profesional" [ref=f3e201]:
+              - /placeholder: "Ej.: Ana García, ana@example.com, Madrid. Senior Designer en Acme (03-2021 a la actualidad). Lideré el rediseño del checkout, reduciendo el abandono un 18%. Educación: Diseño Gráfico en UBA (2015-2019)."
+            - paragraph [ref=f3e202]: 0 caracteres
+            - generic [ref=f3e203]:
+              - button "Mejorar trayectoria y competencias" [ref=f3e204]
+              - button "Generar CV" [ref=f3e208]
+              - generic [ref=f3e211]: Suele tardar menos de un minuto
+        - generic [ref=f3e213]:
+          - paragraph [ref=f3e219]: Tu CV aparecerá aquí
+          - paragraph [ref=f3e220]: Escribe tu experiencia a la izquierda y pulsa “Generar CV” para ver la vista previa.

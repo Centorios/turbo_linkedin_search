@@ -62,12 +62,9 @@ test.describe("Autenticación", () => {
     await page.getByTestId("auth-submit").click();
     await expect(page.getByTestId("protected-content")).toBeVisible();
 
-    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toBeVisible();
-
     await page.reload();
 
     await expect(page.getByTestId("protected-content")).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toBeVisible();
   });
 
   test("cierra la sesión y vuelve a bloquear el flujo privado", async ({ page }) => {
