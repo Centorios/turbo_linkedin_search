@@ -1,0 +1,393 @@
+openapi: 3.1.0
+info:
+  title: CV PDF Import and Editing
+  version: 1.0.0
+  description: Contratos protegidos para importar un PDF, proponer cambios y guardar nuevas versiones de CV.
+paths:
+  /api/cv-imports:
+    post:
+      summary: Importar un CV desde un PDF
+      description: |
+        Requiere autenticación. El cuerpo es el PDF binario, no multipart ni base64.
+        Valida tipo, firma, tamaño (máximo 10 MiB), páginas (máximo 20),
+        legibilidad y texto extraíble; estructura el contenido con Azure OpenAI.
+        El PDF original se conserva en almacenamiento privado. La importación
+        crea la fuente y su primera versión estructurada.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/OriginalFilename"
+      requestBody:
+        required: true
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Fuente importada y CV inicial validado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CvImportResponse"
+        "400":
+          $ref: "#/components/responses/InvalidPdf"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/TooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "422":
+          $ref: "#/components/responses/UnprocessablePdf"
+        "502":
+          $ref: "#/components/responses/ProviderUnavailable"
+  /api/cv-imports/{source_id}/edits:
+    post:
+      summary: Proponer una edición del CV
+      description: |
+        Carga la versión base propiedad del usuario, solicita la edición en
+        lenguaje natural y devuelve una propuesta no persistida. Si hacen falta
+        datos factuales, devuelve preguntas sin una propuesta lista para guardar.
+      parameters:
+        - $ref: "#/components/parameters/SourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditRequest"
+      responses:
+        "200":
+          description: Preguntas de aclaración o una propuesta validada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/cv-imports/{source_id}:
+    delete:
+      summary: Eliminar una fuente importada
+      description: Elimina el PDF privado y todas las versiones derivadas, solo después de confirmar que pertenecen al usuario autenticado.
+      parameters:
+        - $ref: "#/components/parameters/SourceId"
+      responses:
+        "204":
+          description: Fuente, archivo y versiones eliminados.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          description: No se pudo completar la eliminación; se informa el error y se conserva un estado recuperable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "422":
+          $ref: "#/components/responses/InvalidRequest"
+        "502":
+          $ref: "#/components/responses/ProviderUnavailable"
+  /api/cv-imports/{source_id}/versions:
+    post:
+      summary: Guardar una nueva versión confirmada
+      description: |
+        Solo acepta una CV revisada y confirmada por el usuario. Comprueba
+        propiedad de la fuente y versión base; la versión original no se modifica.
+      parameters:
+        - $ref: "#/components/parameters/SourceId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveVersionRequest"
+      responses:
+        "201":
+          description: Versión nueva guardada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumeVersion"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/InvalidRequest"
+  /api/cv-imports/{source_id}/file:
+    get:
+      summary: Descargar el PDF fuente
+      description: Comprueba la propiedad de la fuente y devuelve el archivo original desde el bucket privado.
+      parameters:
+        - $ref: "#/components/parameters/SourceId"
+      responses:
+        "200":
+          description: PDF original.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  parameters:
+    SourceId:
+      name: source_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    OriginalFilename:
+      name: X-Original-Filename
+      in: header
+      required: true
+      schema:
+        type: string
+        maxLength: 3060
+        description: Nombre UTF-8 percent-encoded, decodificado y saneado por el servidor; nunca se utiliza como ruta de almacenamiento.
+  schemas:
+    ApiError:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    CvImportResponse:
+      type: object
+      required: [source, resume]
+      properties:
+        source:
+          $ref: "#/components/schemas/CvSource"
+        resume:
+          $ref: "#/components/schemas/ResumeVersion"
+    CvSource:
+      type: object
+      required: [id, originalFilename, fileSizeBytes, pageCount, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        originalFilename:
+          type: string
+        fileSizeBytes:
+          type: integer
+          maximum: 10485760
+        pageCount:
+          type: integer
+          minimum: 1
+          maximum: 20
+        createdAt:
+          type: string
+          format: date-time
+    StructuredCv:
+      type: object
+      description: Contrato de la CV existente, equivalente a app.models.cv.StructuredCv.
+      additionalProperties: false
+      required: [personalInfo, summary, experience, education, skills, languages, certifications]
+      properties:
+        personalInfo:
+          type: object
+          additionalProperties: false
+          required: [fullName, email, phone, location, linkedin, website]
+          properties:
+            fullName: { type: string }
+            email: { type: string }
+            phone: { type: string }
+            location: { type: string }
+            linkedin: { type: string }
+            website: { type: string }
+            photoPath: { type: [string, "null"] }
+        summary:
+          type: string
+        experience:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [title, company, location, startDate, endDate, achievements]
+            properties:
+              title: { type: string }
+              company: { type: string }
+              location: { type: string }
+              startDate: { type: string }
+              endDate: { type: string }
+              achievements:
+                type: array
+                items: { type: string }
+        education:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [institution, program, startDate, endDate, description]
+            properties:
+              institution: { type: string }
+              program: { type: string }
+              startDate: { type: string }
+              endDate: { type: string }
+              description: { type: string }
+        skills:
+          type: object
+          additionalProperties: false
+          required: [hard, soft]
+          properties:
+            hard: { type: array, items: { type: string } }
+            soft: { type: array, items: { type: string } }
+        languages:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, proficiency]
+            properties:
+              name: { type: string }
+              proficiency: { type: string }
+        certifications:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, issuer, issueDate, expirationDate, credential]
+            properties:
+              name: { type: string }
+              issuer: { type: string }
+              issueDate: { type: string }
+              expirationDate: { type: string }
+              credential: { type: string }
+    EditRequest:
+      type: object
+      additionalProperties: false
+      required: [baseResumeId, instruction]
+      properties:
+        baseResumeId:
+          type: string
+          format: uuid
+        instruction:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        answers:
+          type: array
+          items:
+            type: string
+            maxLength: 2000
+          maxItems: 3
+        currentCv:
+          $ref: "#/components/schemas/StructuredCv"
+    EditResponse:
+      oneOf:
+        - type: object
+          required: [status, questions]
+          properties:
+            status:
+              const: needs_input
+            questions:
+              type: array
+              maxItems: 3
+              items: { type: string }
+        - type: object
+          required: [status, proposedCv, changedSections, changeSummary]
+          properties:
+            status:
+              const: ready
+            proposedCv:
+              $ref: "#/components/schemas/StructuredCv"
+            changedSections:
+              type: array
+              uniqueItems: true
+              items:
+                type: string
+                enum: [personalInfo, summary, experience, education, skills, languages, certifications]
+            changeSummary:
+              type: string
+    SaveVersionRequest:
+      type: object
+      additionalProperties: false
+      required: [baseResumeId, data]
+      properties:
+        baseResumeId:
+          type: string
+          format: uuid
+        data:
+          $ref: "#/components/schemas/StructuredCv"
+    ResumeVersion:
+      type: object
+      required: [id, sourceId, parentResumeId, createdAt, data]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sourceId:
+          type: string
+          format: uuid
+        parentResumeId:
+          type: [string, "null"]
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        data:
+          $ref: "#/components/schemas/StructuredCv"
+  responses:
+    Unauthorized:
+      description: Sesión ausente o inválida.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    NotFound:
+      description: Fuente o versión no disponible para el usuario.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    InvalidPdf:
+      description: Archivo vacío, dañado o con encabezado PDF inválido.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    TooLarge:
+      description: Cuerpo PDF mayor que 10 MiB.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    UnsupportedMediaType:
+      description: El cuerpo no declara application/pdf.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    UnprocessablePdf:
+      description: PDF cifrado, con más de 20 páginas, sin texto extraíble, o CV inicial no validable.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    InvalidRequest:
+      description: Solicitud inválida o contenido que no valida contra StructuredCv.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }
+    ProviderUnavailable:
+      description: Azure OpenAI no está disponible o produjo una salida inválida.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ApiError" }

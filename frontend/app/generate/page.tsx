@@ -11,6 +11,7 @@ import { CvPreview, type CvTemplate } from "../components/cv-preview";
 import { TemplateSelector } from "../components/template-selector";
 import { PdfDownload } from "../components/pdf-download";
 import { AlertIcon, BoltIcon, DocumentIcon, SparkleIcon, SpinnerIcon } from "../components/icons";
+import { CvImportEditor } from "../components/cv-import-editor";
 
 export default function GeneratePage() {
   const {
@@ -271,6 +272,7 @@ export default function GeneratePage() {
             )}
           </section>
         </div>
+        <CvImportEditor />
       </main>
       {isAssistantOpen && (
         <TrajectoryAssistant
