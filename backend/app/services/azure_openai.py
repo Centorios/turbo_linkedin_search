@@ -51,6 +51,18 @@ Return exactly one JSON object:
 offerId must be one of the provided candidates, without repeats. Order from best to worst fit.
 Do not give percentages or hiring probability. No markdown, commentary or extra fields. Write in Spanish."""
 
+CV_EDIT_SYSTEM_PROMPT = """You edit a structured CV using only facts in the base CV and the user's explicit answers.
+Never invent or infer employers, dates, responsibilities, achievements, metrics, education, skills, languages, or credentials.
+Change only the sections and experiences requested. Preserve all unrelated content exactly.
+When a requested factual addition lacks information, ask up to three concise questions and do not return a proposal yet.
+When the user explicitly requests deletion, remove only the requested content.
+Return exactly one JSON object in one of these shapes:
+{"status":"needs_input","questions":["..."]}
+or
+{"status":"ready","proposedCv":{"personalInfo":{"fullName":"","email":"","phone":"","location":"","linkedin":"","website":""},"summary":"","experience":[{"title":"","company":"","location":"","startDate":"","endDate":"","achievements":[]}],"education":[{"institution":"","program":"","startDate":"","endDate":"","description":""}],"skills":{"hard":[],"soft":[]},"languages":[{"name":"","proficiency":""}],"certifications":[{"name":"","issuer":"","issueDate":"","expirationDate":"","credential":""}]}}
+Use the exact StructuredCv properties, no additional keys, and valid dates (empty, YYYY, or MM-YYYY).
+Do not include markdown, commentary, or text outside the JSON object."""
+
 
 class AzureOpenAIError(Exception):
     """A provider failure that is safe to expose as a generic upstream error."""
@@ -66,6 +78,20 @@ class AzureOpenAIProvider:
             [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": text},
+            ]
+        )
+
+    async def edit_cv(self, base_cv: dict[str, Any], instruction: str, answers: list[str]) -> dict[str, Any]:
+        return await self._request_json(
+            [
+                {"role": "system", "content": CV_EDIT_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {"baseCv": base_cv, "instruction": instruction, "answers": answers},
+                        ensure_ascii=False,
+                    ),
+                },
             ]
         )
 
