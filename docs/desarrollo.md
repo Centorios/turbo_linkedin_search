@@ -68,6 +68,97 @@ confirmada; `E2E_SIGNUP_EMAIL` debe ser una cuenta nueva si se prueba el registr
 
 No se deben copiar secretos reales a los archivos `.env.example` ni al cliente.
 
+## Autenticación con Google y Microsoft
+
+`/auth` ofrece **Continuar con Google** y **Continuar con Microsoft**, tanto
+al iniciar sesión como al crear una cuenta. Correo y contraseña siguen disponibles.
+El flujo usa Supabase Auth con PKCE; `/auth/callback` intercambia el código y
+devuelve las cookies de sesión antes de llevar a `/generate`. Un rechazo, código
+inválido o error vuelve al login con un mensaje seguro y permite reintentar.
+No hay tablas, migraciones ni dependencias nuevas.
+
+### URLs de retorno
+
+Son dos direcciones distintas; no deben intercambiarse:
+
+| Dónde se configura | URL |
+|---|---|
+| Google Cloud / Microsoft Entra, redirect URI del proveedor | `https://<project-ref>.supabase.co/auth/v1/callback` (copiar del dashboard Supabase) |
+| Supabase Auth > URL Configuration > Redirect URLs | `http://localhost:3000/auth/callback` |
+| Supabase Auth > URL Configuration > Redirect URLs, si usas IP | `http://127.0.0.1:3000/auth/callback` |
+| Supabase Auth > URL Configuration > Redirect URLs, producción | `https://<dominio-de-la-app>/auth/callback` |
+
+Configurar también **Site URL** con el origen canónico de producción. Si usas
+otro puerto local, autorizar su URL exacta (por ejemplo
+`http://localhost:5173/auth/callback`). Empezar y terminar en el mismo origen:
+el verificador PKCE está en las cookies de ese navegador. No mezclar `localhost`
+con `127.0.0.1`. Preferir URLs exactas a comodines amplios en producción.
+
+### Google
+
+1. Crear una aplicación web OAuth en Google Cloud / Google Auth Platform.
+2. Configurar audiencia, pantalla de consentimiento y usuarios de prueba si la
+   aplicación está en modo Testing. Usar solo `openid`, email y perfil básico.
+3. Añadir los orígenes web locales/producción y el redirect URI de **Supabase**
+   de la tabla anterior.
+4. En Supabase Auth > Providers > Google, habilitar el proveedor y guardar el
+   Client ID y Client Secret de esa aplicación.
+
+### Microsoft
+
+1. Registrar una aplicación en Microsoft Entra ID. Para admitir cuentas personales
+   y laborales, elegir **Accounts in any organizational directory and personal
+   Microsoft accounts**. Las restricciones de cada organización siguen aplicando.
+2. Registrar una plataforma **Web** con el redirect URI de **Supabase**.
+3. Crear un Client Secret y copiar su **Value**, no su identificador. Registrar
+   su expiración para rotarlo antes de que venza.
+4. En Supabase Auth > Providers > Azure, habilitar el proveedor y guardar
+   Application (client) ID y el secreto. Usar el tenant
+   `https://login.microsoftonline.com/common` para ambos tipos de cuentas;
+   no limitarlo a un tenant organizacional si se necesitan cuentas personales.
+5. Solicitar únicamente permisos de identidad básicos. La aplicación envía
+   `scopes: "email"` porque Supabase necesita un correo válido de Microsoft.
+   No requiere permisos Mail, Contacts ni Calendar de Microsoft Graph.
+6. Configurar el claim opcional **`xms_edov`** según la
+   [guía de Supabase para Azure](https://supabase.com/docs/guides/auth/social-login/auth-azure#guarding-against-unverified-email-domains),
+   para que Supabase determine si el dominio de email fue verificado. No
+   habilitar comportamientos que acepten dominios de correo sin verificar.
+
+Los secretos de Google y Microsoft se guardan **solo en el dashboard de Supabase**;
+no crear variables `NEXT_PUBLIC_*` para ellos ni ponerlos en `.env.example`.
+La aplicación sigue usando únicamente la URL y anon key públicas existentes.
+La asociación de identidades con el mismo email verificado depende de Supabase;
+la app no fusiona cuentas ni transfiere CVs. El backend sigue validando el JWT
+Supabase y la propiedad de cada recurso, independientemente del proveedor.
+
+### Validación y diagnóstico
+
+Desde `frontend`, ejecutar:
+
+```powershell
+npm test -- tests/auth-actions.test.ts tests/auth-page.test.tsx tests/auth-callback.test.ts tests/auth-callback-integration.test.ts tests/session-provider.test.tsx
+npm run test:e2e -- --project=chromium social-login.spec.ts
+```
+
+Si no está instalado el Chromium de Playwright pero hay un Chrome disponible,
+puedes reutilizarlo sin descargar navegadores (ajustar a su ruta real):
+
+```powershell
+$env:PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="C:\Program Files\Google\Chrome\Application\chrome.exe"
+npm run test:e2e -- --project=chromium social-login.spec.ts
+```
+
+Estas pruebas simulan proveedores y no consumen cuentas ni credenciales reales.
+Antes del release, completar manualmente Google y Microsoft (personal y laboral
+permitida), recargar la sesión, cerrar sesión y comprobar que cada cuenta conserva
+solo su perfil/historial. Cancelar también el consentimiento y verificar reintento.
+
+Si vuelve un error, revisar proveedor habilitado, client ID/secreto vigente,
+audiencia/cuentas permitidas, email de Microsoft y ambas clases de redirect URI.
+Usar los logs administrativos de Supabase sin copiar códigos, tokens ni datos
+personales a tickets o archivos compartidos. El consentimiento real requiere
+configuración administrativa externa y no queda certificado por pruebas simuladas.
+
 ## Historial de CVs
 
 Cada generación exitosa se guarda automáticamente en `resumes`. Desde la cabecera,
