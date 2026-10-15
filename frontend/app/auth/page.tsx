@@ -2,7 +2,7 @@
 
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn, signUp } from "./actions";
+import { signIn, signInWithProvider, signUp, type AuthProvider } from "./actions";
 import { BrandLogo } from "../components/brand-logo";
 import { AlertIcon, CheckCircleIcon, EyeIcon, EyeOffIcon, SpinnerIcon } from "../components/icons";
 
@@ -23,14 +23,34 @@ function AuthPageContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    searchParams.get("reason") === "oauth-error"
+      ? "No se pudo completar el acceso con tu proveedor. Inténtalo de nuevo o usa tu correo y contraseña."
+      : null,
+  );
   const [message, setMessage] = useState<string | null>(
     searchParams.get("reason") === "session-expired" ? "Tu sesión expiró. Vuelve a iniciar sesión." : null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingProvider, setPendingProvider] = useState<AuthProvider | null>(null);
+  const isBusy = isSubmitting || pendingProvider !== null;
+
+  async function handleProviderSignIn(provider: AuthProvider) {
+    if (isBusy) return;
+    setError(null);
+    setMessage(null);
+    setPendingProvider(provider);
+    const result = await signInWithProvider(provider);
+
+    if (result.error) {
+      setError(result.error);
+      setPendingProvider(null);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isBusy) return;
     setError(null);
     setMessage(null);
 
@@ -95,6 +115,7 @@ function AuthPageContent() {
             role="tab"
             aria-selected={mode === "sign-in"}
             data-testid="auth-sign-in-tab"
+            disabled={isBusy}
             onClick={() => selectMode("sign-in")}
             className={`focus-ring rounded-lg px-3 py-2 text-body-sm font-semibold transition-colors ${
               mode === "sign-in" ? "bg-surface text-primary shadow-sm" : "text-text-muted hover:text-text"
@@ -107,6 +128,7 @@ function AuthPageContent() {
             role="tab"
             aria-selected={mode === "sign-up"}
             data-testid="auth-sign-up-tab"
+            disabled={isBusy}
             onClick={() => selectMode("sign-up")}
             className={`focus-ring rounded-lg px-3 py-2 text-body-sm font-semibold transition-colors ${
               mode === "sign-up" ? "bg-surface text-primary shadow-sm" : "text-text-muted hover:text-text"
@@ -117,6 +139,26 @@ function AuthPageContent() {
         </div>
 
         <div className="workspace-card mt-4 w-full rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <div className="mb-5 flex flex-col gap-3" aria-label="Acceso con proveedores">
+            {([
+              { provider: "google", label: "Google", testId: "auth-google" },
+              { provider: "azure", label: "Microsoft", testId: "auth-microsoft" },
+            ] as const).map(({ provider, label, testId }) => (
+              <button
+                key={provider}
+                type="button"
+                data-testid={testId}
+                disabled={isBusy}
+                aria-busy={pendingProvider === provider}
+                onClick={() => void handleProviderSignIn(provider)}
+                className="focus-ring flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-2.5 text-body-sm font-semibold text-text transition-colors hover:bg-subtle disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {pendingProvider === provider && <SpinnerIcon className="h-4 w-4" />}
+                {pendingProvider === provider ? `Conectando con ${label}...` : `Continuar con ${label}`}
+              </button>
+            ))}
+          </div>
+          <p className="mb-5 text-center text-caption-xs text-text-muted">O usa tu correo y contraseña</p>
           <form method="post" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
             <div>
               <label htmlFor="auth-email" className="mb-1.5 block text-body-sm font-semibold text-text">
@@ -189,7 +231,7 @@ function AuthPageContent() {
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isBusy}
               data-testid="auth-submit"
               className="focus-ring mt-1 flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-body-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-70"
             >
