@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import type { StructuredCv } from "../types/cv";
 import { renderCvPdf } from "../lib/cv-pdf";
+import type { CvTemplate } from "../templates/registry";
 import { AlertIcon, SpinnerIcon } from "./icons";
 
-export type CvTemplate = "ats" | "creative";
+export type { CvTemplate } from "../templates/registry";
 
 type PreviewState =
   | { status: "loading" }

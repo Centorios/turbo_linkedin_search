@@ -1,4 +1,4 @@
-import type { CvTemplate } from "../components/cv-preview";
+import { isCreativeTemplate, type CvTemplate } from "../templates/registry";
 import type { StructuredCv } from "../types/cv";
 import { getProfilePhotoUrl } from "./profile-photo-client";
 
@@ -10,7 +10,7 @@ export async function renderCvPdf(cv: StructuredCv, template: CvTemplate): Promi
     import("../templates/cv-pdf-document"),
   ]);
   let printableCv = cv;
-  if (template === "creative" && cv.personalInfo.photoPath) {
+  if (isCreativeTemplate(template) && cv.personalInfo.photoPath) {
     try {
       const photoUrl = await getProfilePhotoUrl(cv.personalInfo.photoPath);
       printableCv = { ...cv, personalInfo: { ...cv.personalInfo, photoUrl } };

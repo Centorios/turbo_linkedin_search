@@ -140,6 +140,37 @@ Usar los logs administrativos de Supabase sin copiar códigos, tokens ni datos
 personales a tickets o archivos compartidos. El consentimiento real requiere
 configuración administrativa externa y no queda certificado por pruebas simuladas.
 
+## Plantillas de PDF
+
+La vista previa y la descarga son **el mismo PDF**: ambas llaman a `renderCvPdf`
+(`frontend/app/lib/cv-pdf.tsx`) y la vista previa lo muestra en un `iframe`. En
+navegadores sin visor de PDF integrado se muestra solo un enlace para abrirlo.
+
+Hay dos plantillas, **Minimalista ATS** y **Creativo PDF**, y esta última tiene cinco
+estilos: Clásico, Barra lateral, Encabezado de color, Elegante serif y Línea de tiempo.
+
+| Qué | Dónde |
+|---|---|
+| Lista de plantillas y estilos, nombres de archivo | `frontend/app/templates/registry.ts` |
+| Elige el documento según la plantilla y arma el nombre del archivo | `frontend/app/templates/cv-pdf-document.tsx` |
+| Un documento por estilo | `frontend/app/templates/pdf/` |
+| Textos, títulos y datos comunes | `frontend/app/templates/pdf/shared.tsx` |
+| Selector de plantilla y estilo | `frontend/app/components/template-selector.tsx` |
+
+Para agregar un estilo:
+
+1. Sumar un id a `CreativeStyle` y una entrada a `CREATIVE_STYLES` (etiqueta, color de muestra, sufijo de archivo).
+2. Crear su documento en `templates/pdf/` reutilizando `shared.tsx`, y añadir su `case` en `cv-pdf-document.tsx`.
+3. Los tests recorren `CV_TEMPLATES`, así que el contenido, la foto y los nombres de archivo se prueban solos. Revisar el resultado con un CV corto y uno largo.
+
+Reglas para los estilos:
+
+- Usar solo las fuentes integradas (Helvetica, Times, Courier): sin archivos de fuente que descargar.
+- Evitar un `letterSpacing` grande (más de 1): hace que el texto se extraiga como "T R A Y E C T O R I A".
+- En una fila con texto y foto o columnas, dar **ancho explícito** al texto y poner `flexShrink: 0` a la foto y a las columnas fijas; si no, el texto no se ajusta y se pisa con la foto o la barra lateral.
+- Las entradas llevan `wrap={false}` para no cortarse entre páginas.
+- Los estilos creativos no muestran fechas ni identificador de las certificaciones.
+
 ## Historial de CVs
 
 Cada generación exitosa se guarda automáticamente en `resumes`. Desde la cabecera,
