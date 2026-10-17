@@ -88,6 +88,19 @@ afterEach(() => {
 });
 
 describe("Importación y edición de CV PDF", () => {
+  it("elige el archivo con un botón \"Buscar\" y muestra su nombre", () => {
+    render(<CvImportEditor />);
+    const browse = screen.getByTestId("cv-import-browse");
+    expect(browse.textContent).toBe("Buscar");
+    expect(browse.className).toContain("bg-primary");
+    expect(browse.getAttribute("for")).toBe("cv-import-file");
+    expect(screen.getByTestId("cv-import-filename").textContent).toBe("Ningún archivo seleccionado");
+
+    const file = new File(["%PDF-1.4"], "mi-cv.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText("Seleccioná el CV en PDF"), { target: { files: [file] } });
+    expect(screen.getByTestId("cv-import-filename").textContent).toBe("mi-cv.pdf");
+  });
+
   it("muestra el progreso mientras importa el archivo", async () => {
     let resolveImport!: (value: CvImportResponse) => void;
     mocks.importCv.mockImplementationOnce(

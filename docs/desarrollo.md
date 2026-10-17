@@ -68,6 +68,21 @@ confirmada; `E2E_SIGNUP_EMAIL` debe ser una cuenta nueva si se prueba el registr
 
 No se deben copiar secretos reales a los archivos `.env.example` ni al cliente.
 
+## Migraciones de Supabase
+
+Las migraciones viven en `backend/supabase/migrations/` y **no se aplican solas**: el deploy
+del backend no las ejecuta. Cada feature que agrega una migración tiene que aplicarla a mano en
+Supabase (**SQL Editor** → pegar el archivo → **Run**) antes de usarse en local o en producción.
+Todas están escritas para poder correrse más de una vez (`if not exists`, `drop policy if exists`,
+`on conflict`).
+
+Si una función nueva falla con un error genérico 500, revisar primero que su migración esté
+aplicada. Por ejemplo, sin `009_cv_import_sources.sql` la importación de CVs responde
+"No se pudo importar el CV" porque faltan la tabla `cv_sources`, la columna `resumes.source_id`
+y el bucket `cv-sources`. Los errores del backend se imprimen con su tipo
+(`cv_import_failed error_type=APIError`); solo se muestran campos seguros (`error_type`,
+`issues`), nunca datos del usuario.
+
 ## Autenticación con Google
 
 `/auth` ofrece **Continuar con Google**, tanto al iniciar sesión como al crear
