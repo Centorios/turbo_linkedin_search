@@ -8,10 +8,16 @@ import { describe, expect, it } from "vitest";
 import ReactPDF from "@react-pdf/renderer";
 import { PDFParse } from "pdf-parse";
 import { buildCvFileName, CvPdfDocument } from "../app/templates/cv-pdf-document";
-import type { CvTemplate } from "../app/components/cv-preview";
+import { CREATIVE_STYLES, CV_TEMPLATES, templateFileSuffix, type CvTemplate } from "../app/templates/registry";
 import type { StructuredCv } from "../app/types/cv";
 
-const TEMPLATES: CvTemplate[] = ["ats", "creative"];
+const TEMPLATES: readonly CvTemplate[] = CV_TEMPLATES;
+const ORDERED_TEMPLATES: CvTemplate[] = ["ats", "creative"];
+const PHOTO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+
+function pageCount(pdf: Buffer): number {
+  return (pdf.toString("latin1").match(/\/Type \/Page(?!s)/g) ?? []).length;
+}
 
 function emptyCv(): StructuredCv {
   return {
@@ -112,9 +118,8 @@ describe("CvPdfDocument", () => {
 
       expect(text).toContain("Acme");
       expect(text).toContain("03-2021");
-      // Nothing should trail the start date on its line (no "-" for the missing end date).
-      const subtitleLine = text.split("\n").find((line) => line.includes("03-2021"));
-      expect(subtitleLine?.trim().endsWith("03-2021")).toBe(true);
+      // Nothing should trail the start date (no "-" for the missing end date), whatever the layout.
+      expect(text).not.toMatch(/03-2021\s*[-–—]/);
     });
 
     it("renders certification fields visible in the selected preview", async () => {
@@ -182,30 +187,36 @@ describe("buildCvFileName", () => {
     const cv: StructuredCv = { ...emptyCv(), personalInfo: { ...emptyCv().personalInfo, fullName: "Ana García" } };
     expect(buildCvFileName(cv, "ats")).toBe("ana-garcia-ats.pdf");
     expect(buildCvFileName(cv, "creative")).toBe("ana-garcia-creativo.pdf");
+    expect(buildCvFileName(cv, "creative-sidebar")).toBe("ana-garcia-creativo-barra-lateral.pdf");
+    expect(buildCvFileName(cv, "creative-banner")).toBe("ana-garcia-creativo-encabezado.pdf");
+    expect(buildCvFileName(cv, "creative-serif")).toBe("ana-garcia-creativo-serif.pdf");
+    expect(buildCvFileName(cv, "creative-timeline")).toBe("ana-garcia-creativo-linea-de-tiempo.pdf");
+    const names = TEMPLATES.map((template) => buildCvFileName(cv, template));
+    expect(new Set(names).size).toBe(TEMPLATES.length);
   });
 });
 
 describe("Foto de perfil en PDF", () => {
-  it("incluye la foto en el PDF creativo y la omite en ATS", async () => {
-    const cv: StructuredCv = {
-      ...emptyCv(),
-      personalInfo: {
-        ...emptyCv().personalInfo,
-        fullName: "Ana García",
-        photoUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-      },
-    };
+  const cvWithPhoto: StructuredCv = {
+    ...emptyCv(),
+    personalInfo: { ...emptyCv().personalInfo, fullName: "Ana García", photoUrl: PHOTO },
+  };
 
-    const creativePdf = await renderPdfBytes(cv, "creative");
-    const atsPdf = await renderPdfBytes(cv, "ats");
+  it.each(CREATIVE_STYLES.map((style) => style.id))("incluye la foto en el estilo creativo %s", async (template) => {
+    expect((await renderPdfBytes(cvWithPhoto, template)).toString("latin1")).toContain("/Subtype /Image");
+  });
 
-    expect(creativePdf.toString("latin1")).toContain("/Subtype /Image");
-    expect(atsPdf.toString("latin1")).not.toContain("/Subtype /Image");
+  it("omite la foto en ATS", async () => {
+    expect((await renderPdfBytes(cvWithPhoto, "ats")).toString("latin1")).not.toContain("/Subtype /Image");
+  });
+
+  it.each(CREATIVE_STYLES.map((style) => style.id))("no incluye imagen en %s si no hay foto", async (template) => {
+    expect((await renderPdfBytes(emptyCv(), template)).toString("latin1")).not.toContain("/Subtype /Image");
   });
 });
 
 describe("Contenido y orden del PDF", () => {
-  it.each(TEMPLATES)("mantiene contenido y orden de la plantilla %s", async (template) => {
+  it.each(ORDERED_TEMPLATES)("mantiene contenido y orden de la plantilla %s", async (template) => {
     const cv: StructuredCv = {
       personalInfo: { fullName: "Ana García", email: "ana@example.com", phone: "600 123 456", location: "Madrid", linkedin: "", website: "" },
       summary: "Product designer con experiencia en productos digitales.",
@@ -225,5 +236,71 @@ describe("Contenido y orden del PDF", () => {
     expectContentInOrder(pdfText, orderedEntries);
     expect(pdfText.includes("product designer con experiencia en productos digitales.")).toBe(template === "creative");
     expect(pdfText).not.toContain("no-mostrar");
+  });
+});
+
+describe("Estilos creativos", () => {
+  const fullCv: StructuredCv = {
+    personalInfo: { fullName: "Ana García", email: "ana@example.com", phone: "600 123 456", location: "Madrid", linkedin: "", website: "" },
+    summary: "Product designer con experiencia en productos digitales.",
+    experience: [
+      { title: "Senior Designer", company: "Acme", location: "Remoto", startDate: "03-2021", endDate: "", achievements: ["Lideró el rediseño del checkout"] },
+    ],
+    education: [{ institution: "UBA", program: "Diseño Gráfico", startDate: "2015", endDate: "2019", description: "" }],
+    skills: { hard: ["Figma"], soft: ["Comunicación"] },
+    languages: [{ name: "Español", proficiency: "Nativo" }],
+    certifications: [{ name: "AWS Cloud Practitioner", issuer: "AWS", issueDate: "2023", expirationDate: "2026", credential: "NO-MOSTRAR" }],
+  };
+
+  // Two-column layouts extract in a different reading order, so only presence is checked here.
+  it.each(CREATIVE_STYLES.map((style) => style.id))("el estilo %s muestra todo el contenido y nada más", async (template) => {
+    const text = (await renderText(fullCv, template)).replace(/\s+/g, " ").toLocaleLowerCase();
+    // The formal serif header intentionally has no "Perfil profesional" label.
+    const labels = template === "creative-serif" ? [] : ["perfil profesional"];
+    for (const entry of [
+      ...labels, "ana garcía", "ana@example.com", "product designer con experiencia", "trayectoria", "senior designer",
+      "acme", "lideró el rediseño", "formación", "diseño gráfico", "uba", "competencias", "figma", "comunicación", "idiomas",
+      "español - nativo", "certificaciones", "aws cloud practitioner",
+    ]) {
+      expect(text, `Falta '${entry}'`).toContain(entry);
+    }
+    expect(text).not.toContain("no-mostrar");
+    expect(text).not.toContain("2023 - 2026");
+  });
+
+  it("cada estilo creativo genera un PDF distinto", async () => {
+    const outputs = await Promise.all(CREATIVE_STYLES.map(async (style) => (await renderPdfBytes(fullCv, style.id)).toString("latin1")));
+    expect(new Set(outputs).size).toBe(CREATIVE_STYLES.length);
+  });
+
+  it.each(["creative-sidebar", "creative-timeline", "creative-banner", "creative-serif"] as const)(
+    "un CV largo ocupa varias páginas en %s sin perder contenido", async (template) => {
+      const longCv: StructuredCv = {
+        ...fullCv,
+        experience: Array.from({ length: 14 }, (_, index) => ({
+          title: `Cargo ${index + 1}`, company: `Empresa ${index + 1}`, location: "Madrid", startDate: "2020", endDate: "2021",
+          achievements: ["Logro con resultados medibles en el área", "Otro logro asociado a un proyecto estratégico"],
+        })),
+      };
+      const pdf = await renderPdfBytes(longCv, template);
+      expect(pageCount(pdf)).toBeGreaterThan(1);
+      const parser = new PDFParse({ data: pdf });
+      try {
+        const text = (await parser.getText()).text;
+        expect(text).toContain("Cargo 1");
+        expect(text).toContain("Cargo 14");
+        expect(text).toContain("Certificaciones".toUpperCase());
+      } finally {
+        await parser.destroy();
+      }
+    },
+  );
+
+  it("el registro mantiene los ids y los nombres de archivo únicos", () => {
+    const ids = CREATIVE_STYLES.map((style) => style.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(new Set(CREATIVE_STYLES.map((style) => style.fileSuffix)).size).toBe(ids.length);
+    expect(templateFileSuffix("ats")).toBe("ats");
+    expect(CV_TEMPLATES).toEqual(["ats", ...ids]);
   });
 });

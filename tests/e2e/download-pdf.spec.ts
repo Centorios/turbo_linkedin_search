@@ -151,6 +151,37 @@ test.describe("Descarga de CV en PDF", () => {
     await expectPdfMatchesPreview(page, creativePath!, "creative");
   });
 
+  test("cada estilo creativo se descarga con su nombre y es igual a su vista previa", async ({ page }) => {
+    await signIn(page);
+    await generateCv(page, fullCv);
+
+    await expect(page.getByTestId("creative-style-selector")).toHaveCount(0);
+    await page.getByTestId("template-creative").click();
+    await expect(page.getByTestId("creative-style-selector")).toBeVisible();
+
+    const styles = [
+      { id: "creative", file: "ana-garcia-creativo.pdf" },
+      { id: "creative-sidebar", file: "ana-garcia-creativo-barra-lateral.pdf" },
+      { id: "creative-banner", file: "ana-garcia-creativo-encabezado.pdf" },
+      { id: "creative-serif", file: "ana-garcia-creativo-serif.pdf" },
+      { id: "creative-timeline", file: "ana-garcia-creativo-linea-de-tiempo.pdf" },
+    ];
+    for (const { id, file } of styles) {
+      await page.getByTestId(`template-style-${id}`).click();
+      await expect(page.getByTestId(`template-style-${id}`)).toHaveAttribute("aria-pressed", "true");
+
+      const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("pdf-download").click()]);
+      expect(download.suggestedFilename()).toBe(file);
+      const path = await download.path();
+      expect(path).not.toBeNull();
+      const downloadedText = await readPdfText(path!);
+      expect(downloadedText).toContain("ana garcía");
+      expect(downloadedText).toContain("lideró el rediseño");
+      // The preview re-renders after the style change, so wait for it to catch up.
+      await expect.poll(async () => readPreviewText(page), { message: `Vista previa de ${id}` }).toBe(downloadedText);
+    }
+  });
+
   test("protege contra descargas duplicadas mientras la primera sigue en curso", async ({ page }) => {
     await signIn(page);
     await generateCv(page, fullCv);
