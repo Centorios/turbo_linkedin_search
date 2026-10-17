@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+
+import httpx
 
 import pytest
 
@@ -31,13 +34,13 @@ def test_import_uses_user_scoped_private_path_and_cleans_up_partial_persistence(
         "user_id": USER_ID,
         "storage_path": f"{USER_ID}/{SOURCE_ID}.pdf",
     }
-    sources.insert.return_value.select.return_value.single.return_value.execute.return_value = SimpleNamespace(
-        data=source_row
+    sources.insert.return_value.select.return_value.execute.return_value = SimpleNamespace(
+        data=[source_row]
     )
     sources.delete.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
         data=[{"id": SOURCE_ID}]
     )
-    resumes.insert.return_value.select.return_value.single.return_value.execute.side_effect = RuntimeError(
+    resumes.insert.return_value.select.return_value.execute.side_effect = RuntimeError(
         "resume insert failed"
     )
 
@@ -131,3 +134,48 @@ def test_version_retry_is_idempotent_and_conflicting_reuse_is_rejected() -> None
             existing["parent_resume_id"],
             existing["data"],
         )
+
+
+def test_import_works_with_the_real_supabase_query_builder() -> None:
+    """A MagicMock accepts any chained call, which hid an insert().select().single()
+    chain that the real postgrest builder does not support. This uses the real
+    client and only fakes the HTTP layer."""
+    from supabase import create_client
+
+    inserted: dict[str, dict] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        table = request.url.path.rsplit("/", 1)[-1]
+        assert request.method == "POST"
+        row = json.loads(request.content)
+        row = {"created_at": "2026-10-17T12:00:00Z", **row}
+        if table == "resumes":
+            row = {"id": RESUME_ID, **row}
+        inserted[table] = row
+        # PostgREST answers inserts with the representation as a list.
+        return httpx.Response(201, json=[row])
+
+    real_client = create_client("https://example.supabase.co", "x" * 40)
+    session = real_client.postgrest.session
+    real_client.postgrest.session = httpx.Client(
+        base_url=session.base_url, headers=session.headers, transport=httpx.MockTransport(handler)
+    )
+    storage = MagicMock()
+    client = SimpleNamespace(table=real_client.table, storage=SimpleNamespace(from_=lambda _bucket: storage))
+
+    result = CvImportRepository(client).create_import(
+        USER_ID,
+        "00000000-0000-0000-0000-000000000010",
+        SOURCE_ID,
+        "cv.pdf",
+        PDF_BYTES,
+        1,
+        {"summary": "CV"},
+    )
+
+    assert result["source"]["id"] == SOURCE_ID
+    assert result["resume"]["id"] == RESUME_ID
+    assert result["resume"]["source_id"] == SOURCE_ID
+    assert set(inserted) == {"cv_sources", "resumes"}
+    storage.upload.assert_called_once()
+    storage.remove.assert_not_called()

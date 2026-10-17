@@ -10,6 +10,15 @@ logger = logging.getLogger(__name__)
 BUCKET_NAME = "cv-sources"
 
 
+def _inserted_row(response: Any) -> dict[str, Any] | None:
+    """Returns the inserted row. postgrest's insert() has no .single(), so the
+    representation comes back as a one-item list."""
+    data = getattr(response, "data", None)
+    if isinstance(data, list):
+        return data[0] if data and isinstance(data[0], dict) else None
+    return data if isinstance(data, dict) else None
+
+
 class CvImportRepository:
     def __init__(self, client: Client | None = None) -> None:
         self.client = client or get_admin_client()
@@ -74,11 +83,10 @@ class CvImportRepository:
                     }
                 )
                 .select("*")
-                .single()
                 .execute()
             )
-            source = source_response.data
-            if not isinstance(source, dict):
+            source = _inserted_row(source_response)
+            if source is None:
                 raise RuntimeError("CV import source persistence returned no row")
             source_created = True
             resume_response = (
@@ -93,11 +101,10 @@ class CvImportRepository:
                     }
                 )
                 .select("id,user_id,source_id,parent_resume_id,data,created_at")
-                .single()
                 .execute()
             )
-            resume = resume_response.data
-            if not isinstance(resume, dict):
+            resume = _inserted_row(resume_response)
+            if resume is None:
                 raise RuntimeError("CV import resume persistence returned no row")
             return {"source": source, "resume": resume}
         except Exception as exc:
@@ -170,12 +177,12 @@ class CvImportRepository:
                 }
             )
             .select("id,user_id,source_id,parent_resume_id,data,created_at")
-            .single()
             .execute()
         )
-        if response is None or not isinstance(response.data, dict):
+        version = _inserted_row(response)
+        if version is None:
             raise RuntimeError("CV version persistence returned no row")
-        return response.data
+        return version
 
     def download_source(self, user_id: str, source_id: str) -> tuple[bytes, str] | None:
         source = self.get_source(user_id, source_id)
