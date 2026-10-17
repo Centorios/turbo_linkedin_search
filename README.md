@@ -7,8 +7,8 @@ Vamos a dividir el desarrollo en 2 etapas: primero un MVP y luego un desarrollo 
 ## Etapa 1: MVP - Generador de CV con IA
 El objetivo central es ingerir texto no estructurado y devolver un documento perfectamente formateado, con versiones puramente textuales para los Applicant Tracking Systems (ATS) y versiones con diseño para humanos.
 
-*   **Login:** Acceso con correo/contraseña, Google o Microsoft mediante Supabase Auth.
-    Ver [configuración de proveedores OAuth](docs/desarrollo.md#autenticación-con-google-y-microsoft).
+*   **Login:** Acceso con correo/contraseña o Google mediante Supabase Auth.
+    Ver [configuración del acceso con Google](docs/desarrollo.md#autenticación-con-google).
 *   **Ingesta de datos:** Interfaz donde el usuario ingresa su biografía e historia laboral en texto libre.
 *   **Procesamiento LLM:** Un modelo de lenguaje extrae entidades (experiencia, educación, habilidades blandas y duras) y redacta *bullet points* orientados a logros. La salida del LLM debe ser forzada estrictamente a un formato JSON.
 *   **Motor de Plantillas:** El JSON alimenta componentes de interfaz de usuario correspondientes a distintas plantillas (ej. "Minimalista ATS", "Creativo PDF").

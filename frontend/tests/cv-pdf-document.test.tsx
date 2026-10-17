@@ -5,12 +5,9 @@
 // (an unrelated jsdom + Node binary-stream interaction), so this file opts
 // into the plain Node environment instead.
 import { describe, expect, it } from "vitest";
-import { renderToStaticMarkup } from "react-dom/server";
 import ReactPDF from "@react-pdf/renderer";
 import { PDFParse } from "pdf-parse";
 import { buildCvFileName, CvPdfDocument } from "../app/templates/cv-pdf-document";
-import { MinimalistaAts } from "../app/templates/minimalista-ats";
-import { CreativoPdf } from "../app/templates/creativo-pdf";
 import type { CvTemplate } from "../app/components/cv-preview";
 import type { StructuredCv } from "../app/types/cv";
 
@@ -45,19 +42,6 @@ async function renderText(cv: StructuredCv, template: CvTemplate): Promise<strin
   } finally {
     await parser.destroy();
   }
-}
-
-function renderPreviewText(cv: StructuredCv, template: CvTemplate): string {
-  const markup = renderToStaticMarkup(template === "ats" ? <MinimalistaAts cv={cv} /> : <CreativoPdf cv={cv} />);
-  return markup
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&#x27;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLocaleLowerCase();
 }
 
 function expectContentInOrder(text: string, entries: string[]) {
@@ -220,7 +204,7 @@ describe("Foto de perfil en PDF", () => {
   });
 });
 
-describe("Equivalencia entre vista previa y PDF", () => {
+describe("Contenido y orden del PDF", () => {
   it.each(TEMPLATES)("mantiene contenido y orden de la plantilla %s", async (template) => {
     const cv: StructuredCv = {
       personalInfo: { fullName: "Ana García", email: "ana@example.com", phone: "600 123 456", location: "Madrid", linkedin: "", website: "" },
@@ -233,17 +217,13 @@ describe("Equivalencia entre vista previa y PDF", () => {
       languages: [{ name: "Español", proficiency: "Nativo" }],
       certifications: [{ name: "AWS Cloud Practitioner", issuer: "AWS", issueDate: "2023", expirationDate: "2026", credential: "NO-MOSTRAR" }],
     };
-    const previewText = renderPreviewText(cv, template);
     const pdfText = (await renderText(cv, template)).replace(/\s+/g, " ").toLocaleLowerCase();
     const orderedEntries = template === "ats"
       ? ["ana garcía", "ana@example.com", "experiencia", "senior designer", "acme", "lideró el rediseño", "educación", "diseño gráfico", "habilidades", "figma", "idiomas", "español", "certificaciones", "aws cloud"]
       : ["perfil profesional", "ana garcía", "ana@example.com", "product designer", "trayectoria", "senior designer", "acme", "lideró el rediseño", "competencias", "figma", "formación", "diseño gráfico", "idiomas", "español", "certificaciones", "aws cloud"];
 
-    expectContentInOrder(previewText, orderedEntries);
     expectContentInOrder(pdfText, orderedEntries);
-    expect(previewText.includes("product designer con experiencia en productos digitales.")).toBe(template === "creative");
     expect(pdfText.includes("product designer con experiencia en productos digitales.")).toBe(template === "creative");
-    expect(previewText).not.toContain("no-mostrar");
     expect(pdfText).not.toContain("no-mostrar");
   });
 });

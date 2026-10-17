@@ -13,7 +13,10 @@ for (const width of [375, 768, 1440]) {
     await expect(page.getByTestId("auth-error")).toHaveText("Introduce tu correo y contraseña.");
     await page.getByTestId("auth-sign-in-tab").focus();
     await page.keyboard.press("Enter");
+    // Tab order: sign-up tab, then "Continuar con Google", then the email field.
     await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("auth-google")).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(page.getByTestId("auth-email")).toBeFocused();
     expect(await page.getByTestId("auth-email").evaluate((element) => getComputedStyle(element).outlineStyle)).toBe("solid");

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { signIn, signInWithProvider, signOut, signUp } from "../app/auth/actions";
+import { signIn, signInWithGoogle, signOut, signUp } from "../app/auth/actions";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(), oauth: vi.fn(), password: vi.fn(), signup: vi.fn(), signout: vi.fn(),
@@ -16,38 +16,30 @@ beforeEach(() => {
 
 describe("Acciones de autenticación", () => {
   it("inicia Google con retorno fijo en el origen actual", async () => {
-    expect(await signInWithProvider("google")).toEqual({ error: null });
+    expect(await signInWithGoogle()).toEqual({ error: null });
     expect(mocks.oauth).toHaveBeenCalledTimes(1);
     expect(mocks.oauth).toHaveBeenCalledWith({
       provider: "google", options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
   });
 
-  it("inicia Microsoft como Azure y solicita email", async () => {
-    expect(await signInWithProvider("azure")).toEqual({ error: null });
-    expect(mocks.oauth).toHaveBeenCalledTimes(1);
-    expect(mocks.oauth).toHaveBeenCalledWith({
-      provider: "azure", options: { redirectTo: `${window.location.origin}/auth/callback`, scopes: "email" },
-    });
-  });
-
-  it.each(["google", "azure"] as const)("muestra error seguro del proveedor %s", async (provider) => {
+  it("muestra error seguro de Google", async () => {
     mocks.oauth.mockResolvedValue({ data: { url: null }, error: { message: "sensitive provider details" } });
-    const result = await signInWithProvider(provider);
-    expect(result.error).toContain(provider === "google" ? "Google" : "Microsoft");
+    const result = await signInWithGoogle();
+    expect(result.error).toContain("Google");
     expect(result.error).not.toContain("sensitive");
   });
 
   it("no considera éxito una respuesta sin URL", async () => {
     mocks.oauth.mockResolvedValue({ data: { url: null }, error: null });
-    expect((await signInWithProvider("google")).error).toBeTruthy();
+    expect((await signInWithGoogle()).error).toBeTruthy();
   });
 
   it("maneja excepción de red y configuración sin filtrar detalles", async () => {
     mocks.oauth.mockRejectedValue(new Error("sensitive network details"));
-    expect((await signInWithProvider("google")).error).not.toContain("sensitive");
+    expect((await signInWithGoogle()).error).not.toContain("sensitive");
     mocks.create.mockImplementation(() => { throw new Error("missing configuration"); });
-    expect((await signInWithProvider("azure")).error).toContain("Microsoft");
+    expect((await signInWithGoogle()).error).toContain("Google");
   });
 
   it("conserva acceso, registro y cierre por contraseña", async () => {

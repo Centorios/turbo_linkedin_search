@@ -4,12 +4,13 @@ import HistoryPage from "../app/history/page";
 
 const mocks = vi.hoisted(() => ({
   session: { user: { id: "user-a" } } as { user: { id: string } } | null,
-  list: vi.fn(), detail: vi.fn(), remove: vi.fn(), photo: vi.fn(),
+  list: vi.fn(), detail: vi.fn(), remove: vi.fn(), photo: vi.fn(), renderPdf: vi.fn(),
 }));
 vi.mock("../app/auth/session-provider", () => ({ useSession: () => ({ session: mocks.session, isLoading: false }) }));
 vi.mock("../app/lib/resume-history-client", () => ({ listResumes: mocks.list, getResume: mocks.detail, deleteResume: mocks.remove }));
 vi.mock("../app/lib/profile-photo-client", () => ({ getProfilePhotoUrl: mocks.photo }));
 vi.mock("../app/components/app-header", () => ({ AppHeader: () => <header>CV8</header> }));
+vi.mock("../app/lib/cv-pdf", () => ({ renderCvPdf: mocks.renderPdf }));
 vi.mock("../app/components/pdf-download", () => ({ PdfDownload: () => <button data-testid="pdf-download">Descargar PDF</button> }));
 
 const cv = {
@@ -29,16 +30,24 @@ beforeEach(() => {
   mocks.list.mockResolvedValue(page);
   mocks.detail.mockResolvedValue({ id: item.id, createdAt: item.createdAt, data: cv });
   mocks.remove.mockResolvedValue(undefined);
+  mocks.renderPdf.mockResolvedValue(new Blob(["%PDF-"], { type: "application/pdf" }));
+  URL.createObjectURL = vi.fn(() => "blob:cv-preview");
+  URL.revokeObjectURL = vi.fn();
 });
+
+function lastPreviewed() {
+  const [cv, template] = mocks.renderPdf.mock.calls.at(-1) as [{ personalInfo: { fullName: string }; summary: string }, string];
+  return { fullName: cv.personalInfo.fullName, summary: cv.summary, template };
+}
 
 describe("Historial de CVs", () => {
   it("lista, abre snapshot y conserva contenido al cambiar plantilla", async () => {
     render(<HistoryPage />);
     fireEvent.click(await screen.findByTestId("history-item-resume-a"));
-    await screen.findByTestId("cv-preview");
-    expect(screen.getByTestId("cv-preview").textContent).toContain("Nombre original");
+    await screen.findByTestId("cv-preview-frame");
+    expect(lastPreviewed()).toMatchObject({ fullName: "Nombre original", template: "ats" });
     fireEvent.click(screen.getByTestId("template-creative"));
-    expect(screen.getByTestId("cv-preview").textContent).toContain("Experiencia original");
+    await waitFor(() => expect(lastPreviewed()).toMatchObject({ summary: "Experiencia original", template: "creative" }));
     expect(screen.getByTestId("pdf-download")).toBeTruthy();
   });
 
@@ -114,7 +123,9 @@ describe("Historial de CVs", () => {
     fireEvent.click(screen.getByTestId("history-item-resume-b"));
     await screen.findByTestId("cv-preview");
     finishFirst({ id: item.id, createdAt: item.createdAt, data: cv });
-    await waitFor(() => expect(screen.getByTestId("cv-preview").textContent).toContain("Segundo CV"));
+    await screen.findByTestId("cv-preview-frame");
+    await waitFor(() => expect(lastPreviewed().fullName).toBe("Segundo CV"));
+    expect(mocks.renderPdf.mock.calls.every(([previewed]) => previewed.personalInfo.fullName === "Segundo CV")).toBe(true);
   });
 
   it("borra documentos al cambiar de cuenta o cerrar sesión", async () => {
@@ -191,8 +202,8 @@ describe("Historial de CVs", () => {
     mocks.photo.mockRejectedValue(new Error("Foto eliminada"));
     render(<HistoryPage />);
     fireEvent.click(await screen.findByTestId("history-item-resume-a"));
-    await screen.findByTestId("cv-preview");
-    expect(screen.getByTestId("cv-preview").textContent).toContain("Nombre original");
+    await screen.findByTestId("cv-preview-frame");
+    expect(lastPreviewed().fullName).toBe("Nombre original");
   });
 
   it("descarta la lista de la cuenta previa si llega después del cambio", async () => {

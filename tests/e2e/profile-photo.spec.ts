@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+import { pdfHasImage, readPreviewPdf } from "./pdf-preview";
 
 const userId = "00000000-0000-0000-0000-000000000001";
 const storedPhotoPath = `${userId}/00000000-0000-0000-0000-000000000002.png`;
@@ -180,12 +181,10 @@ test.describe("Foto de perfil opcional", () => {
 
     await page.getByLabel("Biografía o experiencia profesional").fill("Ana trabaja en diseño de productos digitales.");
     await page.getByRole("button", { name: "Generar CV" }).click();
-    const preview = page.getByRole("region", { name: "Vista previa del CV" });
-    await expect(preview).toBeVisible();
-    await expect(preview.getByTestId("cv-profile-photo")).toHaveCount(0);
+    expect(pdfHasImage(await readPreviewPdf(page))).toBe(false);
 
     await page.getByTestId("template-creative").click();
-    await expect(preview.getByTestId("cv-profile-photo")).toBeVisible();
+    await expect.poll(async () => pdfHasImage(await readPreviewPdf(page))).toBe(true);
     const [download] = await Promise.all([
       page.waitForEvent("download"),
       page.getByTestId("pdf-download").click(),

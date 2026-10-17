@@ -10,7 +10,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(mocks.query),
 }));
 vi.mock("../app/auth/actions", () => ({
-  signInWithProvider: mocks.provider, signIn: mocks.signin, signUp: mocks.signup,
+  signInWithGoogle: mocks.provider, signIn: mocks.signin, signUp: mocks.signup,
 }));
 
 afterEach(cleanup);
@@ -32,15 +32,14 @@ function fillPassword() {
 }
 
 describe("Página de acceso social", () => {
-  it.each([
-    ["Google", "google"], ["Microsoft", "azure"],
-  ])("ofrece %s en acceso y registro e inicia el proveedor correcto", async (label, provider) => {
+  it("ofrece Google con su logo en acceso y registro, sin Microsoft", async () => {
     render(<AuthPage />);
-    const button = screen.getByRole("button", { name: `Continuar con ${label}` });
-    expect(button).toBeTruthy();
+    const button = screen.getByRole("button", { name: "Continuar con Google" });
+    expect(button.querySelector("svg")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /Microsoft/ })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Crear cuenta" }));
     fireEvent.click(button);
-    await waitFor(() => expect(mocks.provider).toHaveBeenCalledWith(provider));
+    await waitFor(() => expect(mocks.provider).toHaveBeenCalledTimes(1));
     expect(mocks.signin).not.toHaveBeenCalled();
     expect(mocks.signup).not.toHaveBeenCalled();
     expect(mocks.push).not.toHaveBeenCalled();
@@ -50,21 +49,21 @@ describe("Página de acceso social", () => {
     mocks.provider.mockReturnValue(new Promise(() => {}));
     render(<AuthPage />);
     fireEvent.click(screen.getByRole("button", { name: "Continuar con Google" }));
-    for (const id of ["auth-google", "auth-microsoft", "auth-submit", "auth-sign-in-tab", "auth-sign-up-tab"]) {
+    for (const id of ["auth-google", "auth-submit", "auth-sign-in-tab", "auth-sign-up-tab"]) {
       expect(disabled(id)).toBe(true);
     }
-    fireEvent.click(screen.getByTestId("auth-microsoft"));
+    fireEvent.click(screen.getByTestId("auth-google"));
     expect(mocks.provider).toHaveBeenCalledTimes(1);
   });
 
-  it("muestra falla al iniciar y permite reintentar con otro proveedor", async () => {
+  it("muestra falla al iniciar y permite reintentar", async () => {
     mocks.provider.mockResolvedValueOnce({ error: "No se pudo iniciar sesión con Google." });
     render(<AuthPage />);
     fireEvent.click(screen.getByRole("button", { name: "Continuar con Google" }));
     expect((await screen.findByRole("alert")).textContent).toContain("Google");
     expect(disabled("auth-google")).toBe(false);
-    fireEvent.click(screen.getByRole("button", { name: "Continuar con Microsoft" }));
-    await waitFor(() => expect(mocks.provider).toHaveBeenLastCalledWith("azure"));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar con Google" }));
+    await waitFor(() => expect(mocks.provider).toHaveBeenCalledTimes(2));
   });
 
   it("muestra error seguro de retorno sin reflejar parámetros externos", () => {
@@ -81,7 +80,6 @@ describe("Página de acceso social", () => {
     fillPassword();
     fireEvent.click(screen.getByTestId("auth-submit"));
     expect(disabled("auth-google")).toBe(true);
-    expect(disabled("auth-microsoft")).toBe(true);
     complete({ error: null });
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/generate"));
     expect(mocks.refresh).toHaveBeenCalled();

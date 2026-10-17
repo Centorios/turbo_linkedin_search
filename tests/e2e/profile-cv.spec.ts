@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectPreviewText } from "./pdf-preview";
 
 const savedProfile = {
   fullName: "Ana García",
@@ -58,13 +59,10 @@ test.describe("Perfil reutilizado en el CV", () => {
     await page.getByLabel("Biografía o experiencia profesional").fill("Ana trabaja en diseño de productos digitales.");
     await page.getByRole("button", { name: "Generar CV" }).click();
 
-    const preview = page.getByRole("region", { name: "Vista previa del CV" });
-    await expect(preview.getByRole("heading", { name: "Ana García" })).toBeVisible();
-    await expect(preview).toContainText("ana.cv@example.com");
-    await expect(preview).toContainText("Sin experiencia registrada.");
-    await expect(preview).toContainText("Sin educación registrada.");
-    await expect(preview).toContainText("Figma, Comunicación");
+    await expectPreviewText(page, {
+      contains: ["Ana García", "ana.cv@example.com", "Sin experiencia registrada.", "Sin educación registrada.", "Figma, Comunicación"],
+    });
     await page.getByTestId("template-creative").click();
-    await expect(preview).toContainText("Product designer con experiencia en productos digitales.");
+    await expectPreviewText(page, { contains: ["Product designer con experiencia en productos digitales."] });
   });
 });

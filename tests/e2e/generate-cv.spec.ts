@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { expectPreviewText } from "./pdf-preview";
 
 const validEmail = process.env.E2E_EMAIL;
 const validPassword = process.env.E2E_PASSWORD;
@@ -45,7 +46,7 @@ test.describe("Generación de CV", () => {
     await page.getByTestId("generate-submit").click();
     await expect(page.getByTestId("generate-submit")).toContainText("Generando CV");
     await expect(page.getByTestId("cv-preview")).toBeVisible();
-    await expect(page.getByTestId("template-minimalista-ats")).toContainText("Ana García");
+    await expectPreviewText(page, { contains: ["Ana García"] });
   });
 
   test("conserva secciones vacías sin inventar datos", async ({ page }) => {
@@ -53,7 +54,7 @@ test.describe("Generación de CV", () => {
     await page.route("**/api/generate-cv", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(validCv) }));
     await page.getByTestId("professional-text").fill("Solo se conoce que trabaja con Figma.");
     await page.getByTestId("generate-submit").click();
-    await expect(page.getByTestId("cv-preview")).toContainText("Sin experiencia registrada.");
+    await expectPreviewText(page, { contains: ["Sin experiencia registrada."] });
   });
 
   test("muestra un error recuperable del backend", async ({ page }) => {
