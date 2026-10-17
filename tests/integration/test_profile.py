@@ -18,6 +18,7 @@ PROFILE_A = {
     "location": "Madrid",
     "linkedin": "",
     "website": "",
+    "photoPath": None,
 }
 PROFILE_B = {
     "fullName": "Bea López",
@@ -26,6 +27,7 @@ PROFILE_B = {
     "location": "Valencia",
     "linkedin": "",
     "website": "",
+    "photoPath": None,
 }
 
 

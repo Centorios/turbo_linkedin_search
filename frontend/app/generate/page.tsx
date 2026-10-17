@@ -60,11 +60,11 @@ export default function GeneratePage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isProfileBlocking) {
-      setError("Carga o guarda tu perfil antes de generar el CV.");
+      setError("Cargá o guardá tu perfil antes de generar el CV.");
       return;
     }
     if (!text.trim()) {
-      setError("Escribe tu biografía o experiencia profesional antes de continuar.");
+      setError("Escribí tu biografía o experiencia profesional antes de continuar.");
       return;
     }
 
@@ -85,7 +85,7 @@ export default function GeneratePage() {
       }
       setCv(generatedCv);
     } catch (generationError) {
-      setError(generationError instanceof Error ? generationError.message : "No se pudo generar el CV. Inténtalo de nuevo.");
+      setError(generationError instanceof Error ? generationError.message : "No se pudo generar el CV. Intentá de nuevo.");
     } finally {
       setIsGenerating(false);
     }
@@ -93,7 +93,7 @@ export default function GeneratePage() {
 
   function openAssistant() {
     if (!text.trim()) {
-      setError("Escribe tu trayectoria antes de solicitar ayuda.");
+      setError("Escribí tu trayectoria antes de solicitar ayuda.");
       return;
     }
     setError(null);
@@ -130,7 +130,7 @@ export default function GeneratePage() {
             <div>
               <p className="text-label-xs uppercase tracking-widest text-emerald-200">Tu espacio profesional</p>
               <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Dale impulso a tu próxima oportunidad.</h2>
-              <p className="mt-2 text-body-sm text-indigo-100">Cuenta tu experiencia, revisa el resultado y crea un CV que hable por ti.</p>
+              <p className="mt-2 text-body-sm text-indigo-100">Contá tu experiencia, revisá el resultado y creá un CV que hable por vos.</p>
             </div>
             <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-body-sm font-semibold text-emerald-200">ATS + diseño visual</span>
           </div>
@@ -153,7 +153,7 @@ export default function GeneratePage() {
                 )}
               </div>
               <p className="mt-1 text-caption-xs text-text-muted">
-                Pega tu biografía o historia laboral en texto libre; la convertimos en un CV estructurado.
+                Pegá tu biografía o historia laboral en texto libre; la convertimos en un CV estructurado.
               </p>
 
               <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
@@ -266,7 +266,7 @@ export default function GeneratePage() {
                 <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white bg-white/75 shadow-sm"><DocumentIcon className="h-9 w-9 text-primary" /></div>
                 <p className="text-body-sm font-semibold text-text">Tu CV aparecerá aquí</p>
                 <p className="max-w-xs text-caption-xs text-text-muted">
-                  Escribe tu experiencia a la izquierda y pulsa &ldquo;Generar CV&rdquo; para ver la vista previa.
+                  Escribí tu experiencia a la izquierda y hacé clic en &ldquo;Generar CV&rdquo; para ver la vista previa.
                 </p>
               </div>
             )}

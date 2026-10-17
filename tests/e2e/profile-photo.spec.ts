@@ -136,7 +136,7 @@ test.describe("Foto de perfil opcional", () => {
     const mocks = await installMocks(page);
     await signIn(page);
 
-    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toBeVisible();
     await page.getByLabel("Nombre completo").fill("Ana García");
     await page.getByLabel("Foto de perfil (opcional)").setInputFiles({
       name: "foto.png",
@@ -146,7 +146,7 @@ test.describe("Foto de perfil opcional", () => {
     await expect(page.getByTestId("profile-photo-preview")).toBeVisible();
     await page.getByRole("button", { name: "Guardar perfil" }).click();
 
-    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toHaveCount(0);
     expect(mocks.uploads).toHaveLength(1);
     expect(mocks.profile?.photoPath).toMatch(new RegExp(`^${userId}/[0-9a-f-]+\\.png$`));
 

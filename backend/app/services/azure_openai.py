@@ -38,7 +38,8 @@ Every factual proposal must include at least one exact, non-empty quote copied f
 Copy each evidence quote character-for-character from the original sourceText or answer: do not add, remove, or change punctuation, capitalization, quotation marks, or trailing periods, and do not merge words from different sentences.
 If you cannot find a verbatim quote that supports a fact, omit that proposal instead of inventing or altering a quote.
 Only use competencyType for competency proposals. Never present a development recommendation as an existing skill or credential.
-Do not put proposals in needs_input results. Do not include fields other than those shown, markdown, or commentary."""
+Do not put proposals in needs_input results. Do not include fields other than those shown, markdown, or commentary.
+Write every follow-up question and development recommendation addressed to the person in Rioplatense Spanish using voseo (for example "contá", "tenés", "podés"), in a professional tone. The text of proposals and the evidence quotes belong to the CV: keep them impersonal and in the wording of the source."""
 
 
 MATCH_SYSTEM_PROMPT = """You recommend up to three job offers for a person, using only the provided resume JSON and candidate offers.
@@ -49,7 +50,8 @@ Only recommend offers that are reasonably suitable; return fewer than three or a
 Return exactly one JSON object:
 {"recommendations":[{"offerId":"<id of a provided candidate>","affinity":"Alta|Media","summary":"...","matches":["..."],"unmetRequirements":["requirements of the offer not evidenced in the resume"],"missingInfo":["..."]}]}
 offerId must be one of the provided candidates, without repeats. Order from best to worst fit.
-Do not give percentages or hiring probability. No markdown, commentary or extra fields. Write in Spanish."""
+Do not give percentages or hiring probability. No markdown, commentary or extra fields.
+Write in Rioplatense Spanish. When you address the person directly, use voseo (for example "tenés", "podés"), in a professional tone."""
 
 CV_EDIT_SYSTEM_PROMPT = """You edit a structured CV using only facts in the base CV and the user's explicit answers.
 Never invent or infer employers, dates, responsibilities, achievements, metrics, education, skills, languages, or credentials.
@@ -61,7 +63,8 @@ Return exactly one JSON object in one of these shapes:
 or
 {"status":"ready","proposedCv":{"personalInfo":{"fullName":"","email":"","phone":"","location":"","linkedin":"","website":""},"summary":"","experience":[{"title":"","company":"","location":"","startDate":"","endDate":"","achievements":[]}],"education":[{"institution":"","program":"","startDate":"","endDate":"","description":""}],"skills":{"hard":[],"soft":[]},"languages":[{"name":"","proficiency":""}],"certifications":[{"name":"","issuer":"","issueDate":"","expirationDate":"","credential":""}]}}
 Use the exact StructuredCv properties, no additional keys, and valid dates (empty, YYYY, or MM-YYYY).
-Do not include markdown, commentary, or text outside the JSON object."""
+Do not include markdown, commentary, or text outside the JSON object.
+Write every question addressed to the person in Rioplatense Spanish using voseo (for example "contá", "tenés", "podés"), in a professional tone. The CV content itself stays impersonal and in the wording of the source."""
 
 
 class AzureOpenAIError(Exception):

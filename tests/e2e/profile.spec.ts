@@ -111,7 +111,7 @@ test.describe("Perfil básico después del inicio de sesión", () => {
     await installSupabaseMocks(page);
     await signIn(page);
 
-    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toBeVisible();
     await expect(page.getByLabel("Correo para el CV")).toHaveValue("ana@example.test");
   });
 
@@ -123,9 +123,9 @@ test.describe("Perfil básico después del inicio de sesión", () => {
     await page.getByLabel("Perfil de LinkedIn").fill("ftp://example.com");
     await page.getByRole("button", { name: "Guardar perfil" }).click();
 
-    await expect(page.getByText("Introduce tu nombre completo.")).toBeVisible();
-    await expect(page.getByText("Introduce un correo válido o deja el campo vacío.")).toBeVisible();
-    await expect(page.getByText("Usa una dirección que empiece por http:// o https://.")).toBeVisible();
+    await expect(page.getByText("Ingresá tu nombre completo.")).toBeVisible();
+    await expect(page.getByText("Ingresá un correo válido o dejá el campo vacío.")).toBeVisible();
+    await expect(page.getByText("Usá una dirección que empiece con http:// o https://.")).toBeVisible();
     expect(mocks.profileWriteCount).toBe(0);
   });
 
@@ -135,10 +135,10 @@ test.describe("Perfil básico después del inicio de sesión", () => {
     await fillProfile(page);
     await page.getByRole("button", { name: "Guardar perfil" }).click();
 
-    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toHaveCount(0);
     await page.reload();
     await expect(page.getByTestId("protected-content")).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toHaveCount(0);
   });
 
   test("permite posponer sin escribir y vuelve a ofrecer el diálogo al iniciar sesión", async ({ page }) => {
@@ -146,12 +146,12 @@ test.describe("Perfil básico después del inicio de sesión", () => {
     await signIn(page);
     await page.getByRole("button", { name: "Completar más tarde" }).click();
 
-    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toHaveCount(0);
     expect(mocks.profileWriteCount).toBe(0);
     await page.getByRole("button", { name: "Cerrar sesión" }).click();
     await expect(page).toHaveURL(/\/auth/);
     await signIn(page);
-    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toBeVisible();
   });
 
   test("mantiene los perfiles aislados al cambiar de cuenta en el mismo navegador", async ({ page }) => {
@@ -164,7 +164,7 @@ test.describe("Perfil básico después del inicio de sesión", () => {
     await expect(page).toHaveURL(/\/auth/);
     await signIn(page, "beatriz@example.test");
 
-    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toBeVisible();
     await expect(page.getByLabel("Nombre completo")).toHaveValue("");
     expect([...profiles.values()].map((profile) => profile.fullName)).toEqual(["Ana de la cuenta A"]);
   });
@@ -176,6 +176,6 @@ test.describe("Perfil básico después del inicio de sesión", () => {
     await expect(page.getByTestId("profile-load-error")).toContainText("No se pudo cargar el perfil");
     await expect(page.getByRole("button", { name: "Generar CV" })).toBeDisabled();
     await page.getByRole("button", { name: "Reintentar" }).click();
-    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toBeVisible();
   });
 });

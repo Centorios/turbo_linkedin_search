@@ -135,7 +135,7 @@ async function openJobs(page: Page, matchMode: MatchMode = "success") {
   await page.getByLabel("Contraseña").fill("synthetic-password");
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
   await expect(page).toHaveURL(/\/generate$/);
-  const profileDialog = page.getByRole("dialog", { name: "Completa tu perfil básico" });
+  const profileDialog = page.getByRole("dialog", { name: "Completá tu perfil básico" });
   await expect(profileDialog).toBeVisible();
   await profileDialog.getByRole("button", { name: "Completar más tarde" }).click();
   await page.getByRole("link", { name: "Empleos" }).click();
@@ -150,6 +150,11 @@ async function searchOffers(page: Page) {
   await expect(
     page.getByRole("region", { name: "Ofertas laborales" }).getByRole("heading", { name: jobListing.title }),
   ).toBeVisible();
+}
+
+// The recommendations themselves render in their own region, apart from the Match controls and status.
+function matchResults(page: Page) {
+  return page.getByRole("region", { name: "Mejores coincidencias de Match" });
 }
 
 async function runMatch(page: Page) {
@@ -167,9 +172,10 @@ test.describe("Recomendaciones Match en empleos", () => {
 
     await expect(matchPanel.getByRole("status")).toHaveText("Analizando…");
     await expect(matchPanel.getByRole("status")).toHaveText("Análisis completado.");
-    await expect(matchPanel.getByRole("heading", { name: jobListing.title })).toBeVisible();
-    await expect(matchPanel).toContainText("Afinidad Alta");
-    await expect(matchPanel).toContainText("Experiencia con Kubernetes");
+    const results = matchResults(page);
+    await expect(results.getByRole("heading", { name: jobListing.title })).toBeVisible();
+    await expect(results).toContainText("Afinidad Alta");
+    await expect(results).toContainText("Experiencia con Kubernetes");
   });
 
   test("permite reintentar Match después de un error recuperable", async ({ page }) => {
@@ -183,7 +189,7 @@ test.describe("Recomendaciones Match en empleos", () => {
     await matchPanel.getByRole("button", { name: "Reintentar" }).click();
 
     await expect(matchPanel.getByRole("status")).toHaveText("Análisis completado.");
-    await expect(matchPanel.getByRole("heading", { name: jobListing.title })).toBeVisible();
+    await expect(matchResults(page).getByRole("heading", { name: jobListing.title })).toBeVisible();
   });
 
   test("restaura las ofertas y las recomendaciones guardadas al recargar", async ({ page }) => {
@@ -191,16 +197,17 @@ test.describe("Recomendaciones Match en empleos", () => {
     await searchOffers(page);
     const matchPanel = await runMatch(page);
     await expect(matchPanel.getByRole("status")).toHaveText("Análisis completado.");
-    await expect(matchPanel.getByRole("heading", { name: jobListing.title })).toBeVisible();
+    await expect(matchResults(page).getByRole("heading", { name: jobListing.title })).toBeVisible();
 
     await page.reload();
 
+    // Level 2 is the offer in the list; the recommendation (level 3) lives in the same region.
     await expect(
-      page.getByRole("region", { name: "Ofertas laborales" }).getByRole("heading", { name: jobListing.title }),
+      page.getByRole("region", { name: "Ofertas laborales" }).getByRole("heading", { name: jobListing.title, level: 2 }),
     ).toBeVisible();
     const restoredPanel = page.getByRole("region", { name: "Recomendaciones Match" });
     await expect(restoredPanel.getByRole("status")).toHaveText("Análisis completado.");
-    await expect(restoredPanel.getByRole("heading", { name: jobListing.title })).toBeVisible();
+    await expect(matchResults(page).getByRole("heading", { name: jobListing.title })).toBeVisible();
     await expect.poll(() => state.savedMatchReads).toBeGreaterThan(1);
     expect(state.searchRequests).toBe(1);
   });
@@ -214,7 +221,7 @@ test.describe("Recomendaciones Match en empleos", () => {
     const matchPanel = await runMatch(page);
     await expect(matchPanel.getByRole("status")).toHaveText("Análisis completado.");
 
-    const offerLink = matchPanel.getByRole("link", { name: "Ver oferta" });
+    const offerLink = matchResults(page).getByRole("link", { name: "Ver oferta" });
     await expect(offerLink).toHaveAttribute("target", "_blank");
     await expect(offerLink).toHaveAttribute("rel", "noopener noreferrer");
     const popupPromise = page.waitForEvent("popup");

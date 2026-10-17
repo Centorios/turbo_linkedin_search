@@ -71,7 +71,7 @@ test("recupera snapshot original, pagina y descarga ambas plantillas sin IA", as
 test("vacío y guardado automático tras generación", async ({ page }) => {
   await prepare(page, { empty: true });
   await page.getByTestId("history-navigation").click();
-  await expect(page.getByTestId("history-empty")).toContainText("Aún no tienes CVs");
+  await expect(page.getByTestId("history-empty")).toContainText("Aún no tenés CVs");
   await page.getByTestId("history-create").click();
   await page.getByTestId("professional-text").fill("Mi trayectoria profesional en desarrollo.");
   await page.getByTestId("generate-submit").click();

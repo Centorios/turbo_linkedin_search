@@ -33,7 +33,7 @@ test.describe("Generación de CV", () => {
   test("impide enviar texto vacío", async ({ page }) => {
     await signIn(page);
     await page.getByTestId("generate-submit").click();
-    await expect(page.getByTestId("generation-error")).toContainText("Escribe tu biografía");
+    await expect(page.getByTestId("generation-error")).toContainText("Escribí tu biografía");
   });
 
   test("muestra carga y preview estructurado", async ({ page }) => {

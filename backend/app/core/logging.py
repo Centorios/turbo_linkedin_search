@@ -10,6 +10,29 @@ from starlette.responses import Response
 
 request_logger = logging.getLogger("cv8.request")
 
+# Extra fields that are safe to print: they never hold user data or provider
+# messages. Anything else passed in `extra` stays on the record but is not printed.
+SAFE_LOG_FIELDS = ("error_type", "issues")
+
+
+class SafeExtrasFormatter(logging.Formatter):
+    """Appends whitelisted `extra` fields, e.g. `cv_import_failed error_type=APIError`."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        message = super().format(record)
+        details = " ".join(f"{field}={getattr(record, field)}" for field in SAFE_LOG_FIELDS if hasattr(record, field))
+        return f"{message} {details}" if details else message
+
+
+def configure_logging() -> None:
+    """Prints application warnings and errors (loggers under `app.`) with their safe extras."""
+    app_logger = logging.getLogger("app")
+    if any(isinstance(handler.formatter, SafeExtrasFormatter) for handler in app_logger.handlers):
+        return
+    handler = logging.StreamHandler()
+    handler.setFormatter(SafeExtrasFormatter("%(levelname)s %(name)s: %(message)s"))
+    app_logger.addHandler(handler)
+
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:

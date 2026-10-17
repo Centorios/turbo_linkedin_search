@@ -41,5 +41,9 @@ export async function expectPreviewText(page: Page, { contains = [], excludes = 
     const text = await readPreviewText(page);
     return contains.every((entry) => text.includes(entry.toLocaleLowerCase()))
       && excludes.every((entry) => !text.includes(entry.toLocaleLowerCase()));
-  }, { message: `Vista previa con ${JSON.stringify(contains)} y sin ${JSON.stringify(excludes)}` }).toBe(true);
+  }, {
+    message: `Vista previa con ${JSON.stringify(contains)} y sin ${JSON.stringify(excludes)}`,
+    // The first render in dev mode loads the whole PDF renderer, which can take several seconds.
+    timeout: 15_000,
+  }).toBe(true);
 }

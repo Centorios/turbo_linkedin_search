@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import type { StructuredCv } from "../types/cv";
 import type { ChangedSection, CvSource, EditResponse, ResumeVersion } from "../types/cv-import";
 import { deleteCvSource, downloadCvSource, importCv, proposeCvEdit, saveCvVersion } from "../lib/cv-import-client";
+import { ConfirmDialog } from "./confirm-dialog";
 import { CvPreview, type CvTemplate } from "./cv-preview";
 import { PdfDownload } from "./pdf-download";
 import { TemplateSelector } from "./template-selector";
@@ -34,11 +35,12 @@ export function CvImportEditor() {
   const [busy, setBusy] = useState<BusyAction>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   async function handleImport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!file) {
-      setError("Selecciona el archivo PDF que quieres importar.");
+      setError("Seleccioná el archivo PDF que querés importar.");
       return;
     }
 
@@ -66,11 +68,11 @@ export function CvImportEditor() {
     event.preventDefault();
     if (!source || !baseVersion) return;
     if (!instruction.trim()) {
-      setError("Describe el cambio que quieres proponer.");
+      setError("Describí el cambio que querés proponer.");
       return;
     }
     if (questions.length && answers.some((answer) => !answer.trim())) {
-      setError("Responde todas las preguntas antes de continuar.");
+      setError("Respondé todas las preguntas antes de continuar.");
       return;
     }
 
@@ -149,7 +151,7 @@ export function CvImportEditor() {
   }
 
   async function handleDelete() {
-    if (!source || !window.confirm("¿Eliminar el PDF importado y todas sus versiones?")) return;
+    if (!source) return;
     setBusy("delete");
     setError(null);
     try {
@@ -178,27 +180,40 @@ export function CvImportEditor() {
     >
       <div className="max-w-3xl">
         <h2 id="cv-import-heading" className="text-headline-lg tracking-tight text-text">
-          Edita un CV existente
+          Editá un CV existente
         </h2>
         <p className="mt-1 text-body-sm text-text-muted">
-          Importa un PDF con texto seleccionable y pide a la IA cambios concretos en tus secciones o experiencias.
+          Importá un PDF con texto seleccionable y pedile a la IA cambios concretos en tus secciones o experiencias.
           Revisarás cada propuesta antes de guardarla.
         </p>
 
         {!source && (
           <form onSubmit={handleImport} className="mt-5 flex flex-col items-start gap-3">
             <label htmlFor="cv-import-file" className="text-body-sm font-semibold text-text">
-              Selecciona el CV en PDF
+              Seleccioná el CV en PDF
             </label>
-            <input
-              id="cv-import-file"
-              type="file"
-              accept="application/pdf,.pdf"
-              data-testid="cv-import-file"
-              disabled={busy !== null}
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              className="focus-ring block w-full max-w-xl rounded-lg border border-border bg-surface px-3 py-2 text-body-sm text-text file:mr-3 file:rounded-md file:border-0 file:bg-subtle file:px-3 file:py-1.5 file:font-semibold"
-            />
+            {/* The native input stays accessible but hidden; "Buscar" is its styled label. */}
+            <div className="flex w-full max-w-xl items-center gap-3">
+              <input
+                id="cv-import-file"
+                type="file"
+                accept="application/pdf,.pdf"
+                data-testid="cv-import-file"
+                disabled={busy !== null}
+                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                className="peer sr-only"
+              />
+              <label
+                htmlFor="cv-import-file"
+                data-testid="cv-import-browse"
+                className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-body-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Buscar
+              </label>
+              <span data-testid="cv-import-filename" className="min-w-0 truncate text-body-sm text-text-muted">
+                {file ? file.name : "Ningún archivo seleccionado"}
+              </span>
+            </div>
             <p className="text-caption-xs text-text-muted">
               Máximo 10 MiB y 20 páginas. No se admiten PDF escaneados sin texto extraíble.
             </p>
@@ -230,7 +245,7 @@ export function CvImportEditor() {
               </button>
               <button
                 type="button"
-                onClick={() => void handleDelete()}
+                onClick={() => setConfirmingDelete(true)}
                 disabled={busy !== null}
                 data-testid="cv-import-delete"
                 className="focus-ring rounded-md border border-danger px-3 py-1.5 text-body-sm font-semibold text-danger hover:bg-danger-surface disabled:opacity-70"
@@ -241,7 +256,7 @@ export function CvImportEditor() {
 
             <form onSubmit={handlePropose} className="mt-5 flex flex-col gap-2">
               <label htmlFor="cv-edit-instruction" className="text-body-sm font-semibold text-text">
-                {proposal ? "¿Qué quieres ajustar de esta propuesta?" : "¿Qué quieres cambiar?"}
+                {proposal ? "¿Qué querés ajustar de esta propuesta?" : "¿Qué querés cambiar?"}
               </label>
               <textarea
                 id="cv-edit-instruction"
@@ -250,7 +265,7 @@ export function CvImportEditor() {
                 maxLength={4000}
                 rows={3}
                 data-testid="cv-edit-instruction"
-                placeholder="Ej.: Agrega mi experiencia en Acme, elimina la sección de certificaciones o mejora el resumen."
+                placeholder="Ej.: Agregá mi experiencia en Acme, eliminá la sección de certificaciones o mejorá el resumen."
                 className="focus-ring w-full resize-y rounded-lg border border-border bg-surface p-3 text-body-sm text-text placeholder:text-text-faint"
               />
               {questions.map((question, index) => (
@@ -312,7 +327,7 @@ export function CvImportEditor() {
                 data-testid="cv-import-proposal"
                 className="rounded-xl border border-border bg-surface p-4"
               >
-                <h3 className="text-body-sm font-semibold text-text">Revisa la propuesta antes de guardar</h3>
+                <h3 className="text-body-sm font-semibold text-text">Revisá la propuesta antes de guardar</h3>
                 <p className="mt-2 text-caption-xs text-text-muted">{changeSummary}</p>
                 <p data-testid="cv-import-changed-sections" className="mt-2 text-caption-xs text-text-muted">
                   Secciones modificadas: {changedSections.length ? changedSections.map((section) => sectionLabels[section]).join(", ") : "ninguna"}
@@ -358,6 +373,17 @@ export function CvImportEditor() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="¿Eliminar el PDF importado?"
+        description="Vas a eliminar de forma permanente el PDF importado y todas sus versiones. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar PDF y versiones"
+        onCancel={() => setConfirmingDelete(false)}
+        onConfirm={() => {
+          setConfirmingDelete(false);
+          void handleDelete();
+        }}
+      />
     </section>
   );
 }

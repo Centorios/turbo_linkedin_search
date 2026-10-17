@@ -69,3 +69,23 @@ def test_provider_exception_logs_do_not_include_provider_error(caplog) -> None:
 
     assert response.status_code == 500
     assert private_error not in caplog.text
+
+def test_formatter_prints_only_whitelisted_extras() -> None:
+    from app.core.logging import SafeExtrasFormatter
+
+    formatter = SafeExtrasFormatter("%(levelname)s %(name)s: %(message)s")
+    record = logging.LogRecord("app.api.cv_imports", logging.ERROR, __file__, 1, "cv_import_failed", None, None)
+    record.error_type = "APIError"
+    record.private_text = "PRIVATE_CV_TEXT"
+
+    line = formatter.format(record)
+
+    assert line == "ERROR app.api.cv_imports: cv_import_failed error_type=APIError"
+    assert "PRIVATE_CV_TEXT" not in line
+
+
+def test_formatter_leaves_messages_without_extras_unchanged() -> None:
+    from app.core.logging import SafeExtrasFormatter
+
+    record = logging.LogRecord("app.services.jooble", logging.WARNING, __file__, 1, "jooble_search_failed", None, None)
+    assert SafeExtrasFormatter("%(message)s").format(record) == "jooble_search_failed"

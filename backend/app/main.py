@@ -10,11 +10,12 @@ from app.api.jobs import router as jobs_router
 from app.api.profile import router as profile_router
 from app.api.resumes import router as resumes_router
 from app.api.trajectory_assistance import router as trajectory_assistance_router
-from app.core.logging import RequestLoggingMiddleware
+from app.core.logging import RequestLoggingMiddleware, configure_logging
 from app.core.settings import get_settings
 
 
 def create_app() -> FastAPI:
+    configure_logging()
     settings = get_settings()
     app = FastAPI(title="CV8 API")
     app.add_middleware(

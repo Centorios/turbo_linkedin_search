@@ -71,7 +71,7 @@ describe("Panel de Match", () => {
     const warning = screen.getByTestId("match-partial-warning").textContent;
     expect(warning).toContain("Resultado provisional");
     expect(warning).not.toContain("falló");
-    expect(warning).toContain("recalcula");
+    expect(warning).toContain("recalculá");
   });
 
   it.each(["failed", "timed_out"] as const)("explica el resultado parcial cuando la fuente está %s", async (status) => {
@@ -153,7 +153,7 @@ describe("Panel de Match", () => {
   it("deshabilita Match cuando la búsqueda no se pudo guardar", () => {
     renderMatch(null);
     expect((screen.getByTestId("match-button") as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByTestId("match-status").textContent).toContain("realiza otra búsqueda");
+    expect(screen.getByTestId("match-status").textContent).toContain("realizá otra búsqueda");
   });
 
   it("avisa sobre el arranque en frío y reintenta al cumplirse el timeout", async () => {

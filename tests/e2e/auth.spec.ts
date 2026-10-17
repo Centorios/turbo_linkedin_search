@@ -42,7 +42,7 @@ test.describe("Autenticación", () => {
 
     await expect(page).toHaveURL(/\/generate$/);
     await expect(page.getByTestId("protected-content")).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "Completa tu perfil básico" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toBeVisible();
   });
 
   test("muestra un error para credenciales inválidas", async ({ page }) => {

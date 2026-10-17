@@ -96,8 +96,8 @@ class TrajectoryAssistanceService:
                             id="evidence-clarification",
                             text=(
                                 "No pude verificar una propuesta con la información aportada. "
-                                "¿Puedes describir con tus propias palabras la tarea, responsabilidad "
-                                "o resultado concreto que quieres incluir?"
+                                "¿Podés describir con tus propias palabras la tarea, responsabilidad "
+                                "o resultado concreto que querés incluir?"
                             ),
                         )
                     ],

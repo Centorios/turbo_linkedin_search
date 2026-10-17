@@ -11,9 +11,9 @@ type ProfileErrorResponse = {
 
 const storageErrorMessages: Record<string, string> = {
   profile_read_failed:
-    "No se pudo cargar el perfil desde el almacenamiento. Inténtalo de nuevo; si persiste, comparte el código profile_read_failed.",
+    "No se pudo cargar el perfil desde el almacenamiento. Intentá de nuevo; si persiste, compartí el código profile_read_failed.",
   profile_write_failed:
-    "No se pudo guardar el perfil. Tus cambios no se guardaron. Inténtalo de nuevo; si persiste, comparte el código profile_write_failed.",
+    "No se pudo guardar el perfil. Tus cambios no se guardaron. Intentá de nuevo; si persiste, compartí el código profile_write_failed.",
 };
 
 export async function getBasicProfile(): Promise<BasicProfileResponse> {
@@ -49,14 +49,14 @@ async function requestProfile(method: "GET" | "PUT", profile?: BasicProfile): Pr
   } catch {
     const operation = method === "PUT" ? "guardar" : "cargar";
     throw new Error(
-      `No se pudo conectar con el servidor para ${operation} el perfil. Verifica que el backend esté disponible e inténtalo de nuevo.`,
+      `No se pudo conectar con el servidor para ${operation} el perfil. Verificá que el backend esté disponible e intentá de nuevo.`,
     );
   }
 
   if (!response.ok) {
     if (response.status === 401) {
       await supabase.auth.signOut();
-      throw new Error("Tu sesión expiró. Vuelve a iniciar sesión.");
+      throw new Error("Tu sesión expiró. Volvé a iniciar sesión.");
     }
     const payload = (await response.json().catch(() => null)) as ProfileErrorResponse | null;
     const codeMessage = payload?.detail?.code ? storageErrorMessages[payload.detail.code] : undefined;

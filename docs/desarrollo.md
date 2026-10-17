@@ -68,6 +68,21 @@ confirmada; `E2E_SIGNUP_EMAIL` debe ser una cuenta nueva si se prueba el registr
 
 No se deben copiar secretos reales a los archivos `.env.example` ni al cliente.
 
+## Migraciones de Supabase
+
+Las migraciones viven en `backend/supabase/migrations/` y **no se aplican solas**: el deploy
+del backend no las ejecuta. Cada feature que agrega una migración tiene que aplicarla a mano en
+Supabase (**SQL Editor** → pegar el archivo → **Run**) antes de usarse en local o en producción.
+Todas están escritas para poder correrse más de una vez (`if not exists`, `drop policy if exists`,
+`on conflict`).
+
+Si una función nueva falla con un error genérico 500, revisar primero que su migración esté
+aplicada. Por ejemplo, sin `009_cv_import_sources.sql` la importación de CVs responde
+"No se pudo importar el CV" porque faltan la tabla `cv_sources`, la columna `resumes.source_id`
+y el bucket `cv-sources`. Los errores del backend se imprimen con su tipo
+(`cv_import_failed error_type=APIError`); solo se muestran campos seguros (`error_type`,
+`issues`), nunca datos del usuario.
+
 ## Autenticación con Google
 
 `/auth` ofrece **Continuar con Google**, tanto al iniciar sesión como al crear
@@ -170,6 +185,27 @@ Reglas para los estilos:
 - En una fila con texto y foto o columnas, dar **ancho explícito** al texto y poner `flexShrink: 0` a la foto y a las columnas fijas; si no, el texto no se ajusta y se pisa con la foto o la barra lateral.
 - Las entradas llevan `wrap={false}` para no cortarse entre páginas.
 - Los estilos creativos no muestran fechas ni identificador de las certificaciones.
+
+## Textos y tono
+
+Los textos de la interfaz están en **español rioplatense, con voseo y tono profesional**:
+"Ingresá tu correo", "Intentá de nuevo", "Podés descargar el CV", "Elegí una versión".
+Los botones en infinitivo ("Iniciar sesión", "Generar CV") y "tu/tus" no cambian.
+
+- Aplica a la interfaz (`frontend/app`), a los mensajes del backend que se muestran en pantalla y a lo que la IA le dice a la persona.
+- Los prompts de `backend/app/services/azure_openai.py` que generan preguntas y recomendaciones para la persona (asistente de trayectoria, edición de un CV importado y Match) piden español rioplatense con voseo. No cambia el esquema JSON.
+- El **contenido del CV** (resumen, logros, títulos) sigue siendo impersonal y fiel a la fuente.
+- `No conozco ese dato.` es una frase fija: el backend la reconoce como "no sé", así que no se traduce ni se modifica.
+- Al escribir textos nuevos, evitar el tuteo (`puedes`, `introduce`, `inténtalo`, `selecciona`) y el vocabulario peninsular.
+
+## Confirmaciones de acciones destructivas
+
+Las acciones que borran datos (eliminar un CV del historial, eliminar un CV importado) usan
+`ConfirmDialog` (`frontend/app/components/confirm-dialog.tsx`) y no el cartel del navegador
+(`window.confirm`). Es un `alertdialog` accesible: el foco inicial queda en **Cancelar**,
+Tab no sale del diálogo, Escape o el clic en el fondo cancelan y, al cerrar, el foco vuelve al botón
+que lo abrió. Los `data-testid` son `confirm-dialog`, `confirm-dialog-confirm` y
+`confirm-dialog-cancel`. Para una acción nueva, pasar `title`, `description` y `confirmLabel`.
 
 ## Historial de CVs
 

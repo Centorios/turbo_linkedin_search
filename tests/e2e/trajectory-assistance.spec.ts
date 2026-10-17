@@ -56,7 +56,7 @@ test.describe("Asistencia de trayectoria profesional", () => {
           contentType: "application/json",
           body: JSON.stringify({
             state: "needs_input",
-            questions: [{ id: "metric-question", text: "¿Qué cifra puedes confirmar sobre la reducción de incidencias?" }],
+            questions: [{ id: "metric-question", text: "¿Qué cifra podés confirmar sobre la reducción de incidencias?" }],
           }),
         });
         return;
@@ -107,7 +107,7 @@ test.describe("Asistencia de trayectoria profesional", () => {
     await page.getByLabel("Contraseña").fill("synthetic-password");
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
     await expect(page).toHaveURL(/\/generate$/);
-    const profileDialog = page.getByRole("dialog", { name: "Completa tu perfil básico" });
+    const profileDialog = page.getByRole("dialog", { name: "Completá tu perfil básico" });
     await expect(profileDialog).toBeVisible();
     await profileDialog.getByRole("button", { name: "Completar más tarde" }).click();
     await page.getByLabel("Biografía o experiencia profesional").fill(sourceText);
@@ -115,7 +115,7 @@ test.describe("Asistencia de trayectoria profesional", () => {
 
     const dialog = page.getByRole("dialog", { name: "Mejorar trayectoria y competencias" });
     await expect(dialog.getByRole("heading", { name: "Necesito aclarar algunos detalles" })).toBeVisible();
-    await expect(dialog.getByLabel("¿Qué cifra puedes confirmar sobre la reducción de incidencias?")).toBeVisible();
+    await expect(dialog.getByLabel("¿Qué cifra podés confirmar sobre la reducción de incidencias?")).toBeVisible();
     await dialog.getByRole("button", { name: "No conozco esos datos" }).click();
 
     await expect(dialog.getByRole("heading", { name: "Propuestas con evidencia" })).toBeVisible();
