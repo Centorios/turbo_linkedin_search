@@ -69,9 +69,9 @@ async def delete_resume(
 
 def _read_error(exc: Exception) -> HTTPException:
     logger.error("resume_history_read_failed", extra={"error_type": type(exc).__name__})
-    return HTTPException(status_code=500, detail={"code": "resume_read_failed", "message": "No se pudo cargar el historial de CVs. Inténtalo de nuevo."})
+    return HTTPException(status_code=500, detail={"code": "resume_read_failed", "message": "No se pudo cargar el historial de CVs. Intentá de nuevo."})
 
 
 def _delete_error(exc: Exception) -> HTTPException:
     logger.error("resume_history_delete_failed", extra={"error_type": type(exc).__name__})
-    return HTTPException(status_code=500, detail={"code": "resume_delete_failed", "message": "No se pudo eliminar el CV. Inténtalo de nuevo."})
+    return HTTPException(status_code=500, detail={"code": "resume_delete_failed", "message": "No se pudo eliminar el CV. Intentá de nuevo."})

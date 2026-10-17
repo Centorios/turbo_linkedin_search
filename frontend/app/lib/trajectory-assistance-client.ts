@@ -17,7 +17,7 @@ export async function requestTrajectoryAssistance(
   } = await supabase.auth.getSession();
 
   if (!session?.access_token) {
-    throw new Error("La sesión ha expirado. Vuelve a iniciar sesión.");
+    throw new Error("La sesión ha expirado. Volvé a iniciar sesión.");
   }
 
   const backendUrl = getBackendUrl();
@@ -34,7 +34,7 @@ export async function requestTrajectoryAssistance(
   if (!response.ok) {
     if (response.status === 401) {
       await supabase.auth.signOut();
-      throw new Error("La sesión ha expirado. Vuelve a iniciar sesión.");
+      throw new Error("La sesión ha expirado. Volvé a iniciar sesión.");
     }
     const payload = (await response.json().catch(() => null)) as AssistanceErrorResponse | null;
     throw new Error(payload?.detail?.message ?? "No se pudo completar la asistencia");

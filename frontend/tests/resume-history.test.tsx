@@ -52,25 +52,36 @@ describe("Historial de CVs", () => {
   });
 
   it("cancelar la confirmación conserva el CV y no envía la solicitud", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<HistoryPage />);
     await screen.findByTestId("history-item-resume-a");
+    expect(screen.queryByTestId("confirm-dialog")).toBeNull();
 
     fireEvent.click(screen.getByTestId("history-delete-resume-a"));
 
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining("Nombre original"));
+    expect(screen.getByTestId("confirm-dialog").textContent).toContain("Nombre original");
+    fireEvent.click(screen.getByTestId("confirm-dialog-cancel"));
+    expect(screen.queryByTestId("confirm-dialog")).toBeNull();
     expect(mocks.remove).not.toHaveBeenCalled();
     expect(screen.getByTestId("history-item-resume-a")).toBeTruthy();
   });
 
+  it("no usa el cartel del navegador para confirmar", async () => {
+    const nativeConfirm = vi.spyOn(window, "confirm");
+    render(<HistoryPage />);
+    await screen.findByTestId("history-item-resume-a");
+    fireEvent.click(screen.getByTestId("history-delete-resume-a"));
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
+    expect(nativeConfirm).not.toHaveBeenCalled();
+  });
+
   it("al confirmar elimina solo ese CV y cierra su vista previa abierta", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     mocks.list.mockResolvedValue({ ...page, items: [item, { ...item, id: "resume-b", fullName: "Segundo CV" }] });
     render(<HistoryPage />);
     fireEvent.click(await screen.findByTestId("history-item-resume-a"));
     await screen.findByTestId("cv-preview");
 
     fireEvent.click(screen.getByTestId("history-delete-resume-a"));
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
 
     await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith("user-a", "resume-a", expect.any(AbortSignal)));
     await waitFor(() => expect(screen.queryByTestId("cv-preview")).toBeNull());
@@ -79,7 +90,6 @@ describe("Historial de CVs", () => {
   });
 
   it("vuelve a la página anterior al eliminar su único CV", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     mocks.list.mockResolvedValueOnce({ ...page, hasMore: true, items: [{ ...item, id: "resume-previous" }] });
     mocks.list.mockResolvedValueOnce({ ...page, offset: 20 });
     mocks.list.mockResolvedValueOnce({ ...page, items: [{ ...item, id: "resume-previous" }] });
@@ -89,6 +99,7 @@ describe("Historial de CVs", () => {
     await screen.findByTestId("history-item-resume-a");
 
     fireEvent.click(screen.getByTestId("history-delete-resume-a"));
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
 
     await waitFor(() => expect(mocks.list).toHaveBeenLastCalledWith("user-a", 0, expect.any(AbortSignal)));
     await screen.findByTestId("history-item-resume-previous");
@@ -144,12 +155,12 @@ describe("Historial de CVs", () => {
   });
 
   it("descarta una respuesta de eliminación pendiente al cambiar de cuenta", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     let finishDelete!: () => void;
     mocks.remove.mockImplementationOnce(() => new Promise<void>((resolve) => { finishDelete = resolve; }));
     const view = render(<HistoryPage />);
     await screen.findByTestId("history-item-resume-a");
     fireEvent.click(screen.getByTestId("history-delete-resume-a"));
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
     await waitFor(() => expect(mocks.remove).toHaveBeenCalled());
     const deleteSignal = mocks.remove.mock.calls[0][2] as AbortSignal;
 
@@ -165,23 +176,23 @@ describe("Historial de CVs", () => {
   });
 
   it("conserva el CV si falla y permite reintentar hasta eliminarlo", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    mocks.remove.mockRejectedValueOnce(new Error("No se pudo eliminar el CV. Inténtalo de nuevo."));
+    mocks.remove.mockRejectedValueOnce(new Error("No se pudo eliminar el CV. Intentá de nuevo."));
     render(<HistoryPage />);
     await screen.findByTestId("history-item-resume-a");
 
     fireEvent.click(screen.getByTestId("history-delete-resume-a"));
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
     expect(await screen.findByTestId("history-delete-error")).toBeTruthy();
     expect(screen.getByTestId("history-item-resume-a")).toBeTruthy();
 
     fireEvent.click(screen.getByTestId("history-delete-resume-a"));
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
     await waitFor(() => expect(mocks.remove).toHaveBeenCalledTimes(2));
     await screen.findByTestId("history-empty");
     expect(screen.queryByTestId("history-delete-error")).toBeNull();
   });
 
   it("deshabilita la acción mientras el borrado está pendiente", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     let finishDelete!: () => void;
     mocks.remove.mockImplementationOnce(() => new Promise<void>((resolve) => { finishDelete = resolve; }));
     render(<HistoryPage />);
@@ -189,6 +200,7 @@ describe("Historial de CVs", () => {
     const button = screen.getByTestId("history-delete-resume-a");
 
     fireEvent.click(button);
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
     await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(true));
     fireEvent.click(button);
     expect(mocks.remove).toHaveBeenCalledTimes(1);

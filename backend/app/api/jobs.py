@@ -248,7 +248,7 @@ async def _load_owned_cv(repository: ResumeRepository, user_id: str, resume_id: 
         raise
     except Exception as exc:
         logger.error("job_search_resume_read_failed", extra={"error_type": type(exc).__name__})
-        raise HTTPException(status_code=500, detail={"code": "resume_read_failed", "message": "No se pudo cargar el CV. Inténtalo de nuevo."}) from exc
+        raise HTTPException(status_code=500, detail={"code": "resume_read_failed", "message": "No se pudo cargar el CV. Intentá de nuevo."}) from exc
 
 
 @router.get("/search-profile/{resume_id}", response_model=JobSearchProfile)
@@ -278,7 +278,7 @@ async def search_jobs(
     except JobSourceUnconfigured as exc:
         raise HTTPException(status_code=503, detail={"code": "jobs_not_configured", "message": "La búsqueda de empleos aún no está configurada."}) from exc
     except JobSourceError as exc:
-        raise HTTPException(status_code=502, detail={"code": "jobs_source_failed", "message": "No se pudieron consultar las ofertas. Inténtalo de nuevo."}) from exc
+        raise HTTPException(status_code=502, detail={"code": "jobs_source_failed", "message": "No se pudieron consultar las ofertas. Intentá de nuevo."}) from exc
     seen: set[str] = set()
     unique = []
     for job in jobs:
@@ -327,7 +327,7 @@ async def match_jobs(
             status_code=504,
             detail={
                 "code": "match_timeout",
-                "message": "El análisis tardó más de lo esperado. Inténtalo de nuevo.",
+                "message": "El análisis tardó más de lo esperado. Intentá de nuevo.",
             },
         ) from exc
     except MatchProviderUnavailable as exc:
@@ -335,7 +335,7 @@ async def match_jobs(
             status_code=502,
             detail={
                 "code": "match_unavailable",
-                "message": "El servicio de análisis no respondió correctamente. Inténtalo de nuevo.",
+                "message": "El servicio de análisis no respondió correctamente. Intentá de nuevo.",
             },
         ) from exc
     except MatchUnavailable as exc:
@@ -343,7 +343,7 @@ async def match_jobs(
             status_code=503,
             detail={
                 "code": "match_unavailable",
-                "message": "No se pudo completar el análisis. Inténtalo de nuevo.",
+                "message": "No se pudo completar el análisis. Intentá de nuevo.",
             },
         ) from exc
 
@@ -370,6 +370,6 @@ async def get_match_result(
             status_code=503,
             detail={
                 "code": "match_unavailable",
-                "message": "No se pudieron recuperar las recomendaciones. Inténtalo de nuevo.",
+                "message": "No se pudieron recuperar las recomendaciones. Intentá de nuevo.",
             },
         ) from exc

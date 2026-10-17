@@ -84,7 +84,7 @@ test.describe("Competencias demostradas y por desarrollar", () => {
     await page.getByLabel("Contraseña").fill("synthetic-password");
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
     await expect(page).toHaveURL(/\/generate$/);
-    const profileDialog = page.getByRole("dialog", { name: "Completa tu perfil básico" });
+    const profileDialog = page.getByRole("dialog", { name: "Completá tu perfil básico" });
     await expect(profileDialog).toBeVisible();
     await profileDialog.getByRole("button", { name: "Completar más tarde" }).click();
     await page.getByLabel("Biografía o experiencia profesional").fill(sourceText);

@@ -25,11 +25,11 @@ function AuthPageContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(
     searchParams.get("reason") === "oauth-error"
-      ? "No se pudo completar el acceso con tu proveedor. Inténtalo de nuevo o usa tu correo y contraseña."
+      ? "No se pudo completar el acceso con tu proveedor. Intentá de nuevo o usá tu correo y contraseña."
       : null,
   );
   const [message, setMessage] = useState<string | null>(
-    searchParams.get("reason") === "session-expired" ? "Tu sesión expiró. Vuelve a iniciar sesión." : null,
+    searchParams.get("reason") === "session-expired" ? "Tu sesión expiró. Volvé a iniciar sesión." : null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
@@ -55,7 +55,7 @@ function AuthPageContent() {
     setMessage(null);
 
     if (!email.trim() || !password) {
-      setError("Introduce tu correo y contraseña.");
+      setError("Ingresá tu correo y contraseña.");
       return;
     }
 
@@ -69,7 +69,7 @@ function AuthPageContent() {
     }
 
     if (mode === "sign-up") {
-      setMessage("Cuenta creada correctamente. Ya puedes acceder.");
+      setMessage("Cuenta creada correctamente. Ya podés acceder.");
       setMode("sign-in");
       return;
     }
@@ -91,9 +91,9 @@ function AuthPageContent() {
           <div className="relative">
             <span className="inline-flex rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-label-xs text-emerald-200">TU PRÓXIMO CAPÍTULO</span>
             <h2 className="mt-6 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">Tu experiencia merece<br />un gran currículum.</h2>
-            <p className="mt-5 max-w-sm text-body-base leading-relaxed text-indigo-100">Dale forma a tu historia profesional. La IA te ayuda a convertir lo que sabes hacer en un CV claro, listo para compartir.</p>
+            <p className="mt-5 max-w-sm text-body-base leading-relaxed text-indigo-100">Dale forma a tu historia profesional. La IA te ayuda a convertir lo que sabés hacer en un CV claro, listo para compartir.</p>
             <ol className="mt-8 space-y-4 text-body-sm text-indigo-100">
-              {["Cuenta tu trayectoria", "Revisa y elige tu estilo", "Descarga tu CV en PDF"].map((step, index) => (
+              {["Contá tu trayectoria", "Revisá y elegí tu estilo", "Descargá tu CV en PDF"].map((step, index) => (
                 <li key={step} className="flex items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 font-semibold text-emerald-200">0{index + 1}</span>{step}</li>
               ))}
             </ol>
@@ -103,7 +103,7 @@ function AuthPageContent() {
       <div className="mx-auto flex w-full max-w-sm flex-col items-center">
         <BrandLogo className="mb-4 h-20 w-20" />
         <h1 className="text-headline-2xl text-center tracking-tight text-text">Bienvenido a CV8</h1>
-        <p className="mt-1.5 text-center text-body-sm text-text-muted">Accede para generar tu currículum con IA</p>
+        <p className="mt-1.5 text-center text-body-sm text-text-muted">Accedé para generar tu currículum con IA</p>
 
         <div
           role="tablist"
@@ -150,7 +150,7 @@ function AuthPageContent() {
             {isConnectingGoogle ? <SpinnerIcon className="h-5 w-5" /> : <GoogleIcon className="h-5 w-5" />}
             {isConnectingGoogle ? "Conectando con Google..." : "Continuar con Google"}
           </button>
-          <p className="mb-5 text-center text-caption-xs text-text-muted">O usa tu correo y contraseña</p>
+          <p className="mb-5 text-center text-caption-xs text-text-muted">O usá tu correo y contraseña</p>
           <form method="post" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
             <div>
               <label htmlFor="auth-email" className="mb-1.5 block text-body-sm font-semibold text-text">

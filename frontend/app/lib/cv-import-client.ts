@@ -11,7 +11,7 @@ interface ApiError {
 
 export async function importCv(file: File, requestId = crypto.randomUUID()): Promise<CvImportResponse> {
   if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-    throw new Error("Selecciona un archivo PDF.");
+    throw new Error("Seleccioná un archivo PDF.");
   }
   const response = await request("/api/cv-imports", {
     method: "POST",
@@ -78,7 +78,7 @@ async function request(path: string, init: RequestInit): Promise<Response> {
   } = await supabase.auth.getSession();
 
   if (!session?.access_token) {
-    throw new Error("La sesión ha expirado. Vuelve a iniciar sesión.");
+    throw new Error("La sesión ha expirado. Volvé a iniciar sesión.");
   }
 
   let response: Response;
@@ -93,12 +93,12 @@ async function request(path: string, init: RequestInit): Promise<Response> {
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
-    throw new Error("No se pudo conectar con el servidor. Inténtalo de nuevo.");
+    throw new Error("No se pudo conectar con el servidor. Intentá de nuevo.");
   }
 
   if (response.status === 401) {
     await supabase.auth.signOut();
-    throw new Error("La sesión ha expirado. Vuelve a iniciar sesión.");
+    throw new Error("La sesión ha expirado. Volvé a iniciar sesión.");
   }
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as ApiError | null;

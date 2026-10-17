@@ -1,10 +1,7 @@
 import pytest
 
 from app.models.trajectory_assistance import AssistanceTurnRequest
-from app.services.trajectory_assistance import (
-    InvalidAssistanceResultError,
-    TrajectoryAssistanceService,
-)
+from app.services.trajectory_assistance import TrajectoryAssistanceService
 
 
 class FakeAssistanceProvider:
@@ -54,7 +51,7 @@ async def test_demonstrated_competency_and_development_recommendation_remain_sep
 
 
 @pytest.mark.asyncio
-async def test_competency_without_evidence_from_user_is_rejected() -> None:
+async def test_competency_without_evidence_from_user_asks_for_clarification() -> None:
     provider = FakeAssistanceProvider(
         {
             "state": "ready",
@@ -72,10 +69,14 @@ async def test_competency_without_evidence_from_user_is_rejected() -> None:
     )
     service = TrajectoryAssistanceService(provider=provider)
 
-    with pytest.raises(InvalidAssistanceResultError):
-        await service.assist(
-            "user-1",
-            AssistanceTurnRequest.model_validate(
-                {"sourceText": "Coordiné un equipo de soporte.", "answers": []}
-            ),
-        )
+    result = await service.assist(
+        "user-1",
+        AssistanceTurnRequest.model_validate(
+            {"sourceText": "Coordiné un equipo de soporte.", "answers": []}
+        ),
+    )
+
+    # An unverifiable proposal is never shown: the person is asked to say it in their own words.
+    assert result.state == "needs_input"
+    assert [question.id for question in result.questions] == ["evidence-clarification"]
+    assert "Podés describir" in result.questions[0].text

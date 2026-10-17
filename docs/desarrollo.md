@@ -171,6 +171,27 @@ Reglas para los estilos:
 - Las entradas llevan `wrap={false}` para no cortarse entre páginas.
 - Los estilos creativos no muestran fechas ni identificador de las certificaciones.
 
+## Textos y tono
+
+Los textos de la interfaz están en **español rioplatense, con voseo y tono profesional**:
+"Ingresá tu correo", "Intentá de nuevo", "Podés descargar el CV", "Elegí una versión".
+Los botones en infinitivo ("Iniciar sesión", "Generar CV") y "tu/tus" no cambian.
+
+- Aplica a la interfaz (`frontend/app`), a los mensajes del backend que se muestran en pantalla y a lo que la IA le dice a la persona.
+- Los prompts de `backend/app/services/azure_openai.py` que generan preguntas y recomendaciones para la persona (asistente de trayectoria, edición de un CV importado y Match) piden español rioplatense con voseo. No cambia el esquema JSON.
+- El **contenido del CV** (resumen, logros, títulos) sigue siendo impersonal y fiel a la fuente.
+- `No conozco ese dato.` es una frase fija: el backend la reconoce como "no sé", así que no se traduce ni se modifica.
+- Al escribir textos nuevos, evitar el tuteo (`puedes`, `introduce`, `inténtalo`, `selecciona`) y el vocabulario peninsular.
+
+## Confirmaciones de acciones destructivas
+
+Las acciones que borran datos (eliminar un CV del historial, eliminar un CV importado) usan
+`ConfirmDialog` (`frontend/app/components/confirm-dialog.tsx`) y no el cartel del navegador
+(`window.confirm`). Es un `alertdialog` accesible: el foco inicial queda en **Cancelar**,
+Tab no sale del diálogo, Escape o el clic en el fondo cancelan y, al cerrar, el foco vuelve al botón
+que lo abrió. Los `data-testid` son `confirm-dialog`, `confirm-dialog-confirm` y
+`confirm-dialog-cancel`. Para una acción nueva, pasar `title`, `description` y `confirmLabel`.
+
 ## Historial de CVs
 
 Cada generación exitosa se guarda automáticamente en `resumes`. Desde la cabecera,

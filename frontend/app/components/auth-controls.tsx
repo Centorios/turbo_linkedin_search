@@ -13,7 +13,7 @@ export function AuthControls() {
     setError(null);
     const result = await signOut();
     if (result.error) {
-      setError("No se pudo cerrar la sesión. Inténtalo de nuevo.");
+      setError("No se pudo cerrar la sesión. Intentá de nuevo.");
       return;
     }
 

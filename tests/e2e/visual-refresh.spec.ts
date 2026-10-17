@@ -10,7 +10,7 @@ for (const width of [375, 768, 1440]) {
     await page.getByTestId("auth-sign-up-tab").click();
     await expect(page.getByTestId("auth-submit")).toHaveText("Crear cuenta");
     await page.getByTestId("auth-submit").click();
-    await expect(page.getByTestId("auth-error")).toHaveText("Introduce tu correo y contraseña.");
+    await expect(page.getByTestId("auth-error")).toHaveText("Ingresá tu correo y contraseña.");
     await page.getByTestId("auth-sign-in-tab").focus();
     await page.keyboard.press("Enter");
     // Tab order: sign-up tab, then "Continuar con Google", then the email field.

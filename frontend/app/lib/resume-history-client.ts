@@ -18,7 +18,7 @@ async function requestHistory(userId: string, path: string, signal: AbortSignal,
   const supabase = createSupabaseBrowserClient();
   const { data: { session } } = await supabase.auth.getSession();
   signal.throwIfAborted();
-  if (!session?.access_token) throw new Error("La sesión ha expirado. Vuelve a iniciar sesión.");
+  if (!session?.access_token) throw new Error("La sesión ha expirado. Volvé a iniciar sesión.");
   if (session.user.id !== userId) throw new DOMException("La cuenta cambió", "AbortError");
   const backendUrl = getBackendUrl();
   let response: Response;
@@ -27,7 +27,7 @@ async function requestHistory(userId: string, path: string, signal: AbortSignal,
   } catch (error) {
     signal.throwIfAborted();
     if (error instanceof DOMException && error.name === "AbortError") throw error;
-    throw new Error("No se pudo conectar con el servidor. Inténtalo de nuevo.");
+    throw new Error("No se pudo conectar con el servidor. Intentá de nuevo.");
   }
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { detail?: { message?: string } } | null;
@@ -36,9 +36,9 @@ async function requestHistory(userId: string, path: string, signal: AbortSignal,
       const { data: { session: current } } = await supabase.auth.getSession();
       signal.throwIfAborted();
       if (current?.access_token === session.access_token) await supabase.auth.signOut();
-      throw new Error("Tu sesión expiró. Vuelve a iniciar sesión.");
+      throw new Error("Tu sesión expiró. Volvé a iniciar sesión.");
     }
-    throw new Error(payload?.detail?.message ?? "No se pudo cargar el historial. Inténtalo de nuevo.");
+    throw new Error(payload?.detail?.message ?? "No se pudo cargar el historial. Intentá de nuevo.");
   }
   signal.throwIfAborted();
   return response;

@@ -17,6 +17,7 @@ PROFILE_BODY = {
     "location": "Madrid",
     "linkedin": "https://www.linkedin.com/in/ana-garcia",
     "website": "https://ana.example.com",
+    "photoPath": None,
 }
 VALID_HEADERS = {"Authorization": "Bearer valid-profile-token"}
 

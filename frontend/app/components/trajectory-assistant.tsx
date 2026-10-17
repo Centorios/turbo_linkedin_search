@@ -190,7 +190,7 @@ export function TrajectoryAssistant({
               </div>
             ))}
             <p className="text-caption-xs text-text-muted">
-              Comparte solo lo que recuerdes; no añadiremos cifras o hechos que no confirmes.
+              Compartí solo lo que recuerdes; no agregaremos cifras ni hechos que no confirmes.
             </p>
             <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-4">
               <button type="button" onClick={onContinueWithoutSuggestions} className="focus-ring rounded-lg border border-border px-4 py-2 text-body-sm font-semibold text-text-muted">
@@ -212,7 +212,7 @@ export function TrajectoryAssistant({
               <h3 id="trajectory-proposals-heading" className="text-body-md font-semibold text-text">Propuestas con evidencia</h3>
               {result.proposals.length === 0 ? (
                 <p className="mt-3 text-body-sm text-text-muted">
-                  No hay propuestas adicionales basadas en información confirmada. Puedes continuar con los datos originales.
+                  No hay propuestas adicionales basadas en información confirmada. Podés continuar con los datos originales.
                 </p>
               ) : (
                 <ul className="mt-3 space-y-4">
@@ -271,7 +271,7 @@ export function TrajectoryAssistant({
             {result.developmentRecommendations.length > 0 && (
               <section aria-labelledby="development-recommendations-heading" className="border-t border-border pt-5">
                 <h3 id="development-recommendations-heading" className="text-body-md font-semibold text-text">Competencias que podrías desarrollar</h3>
-                <p className="mt-1 text-caption-xs text-text-muted">Estas acciones son recomendaciones y no se añaden al CV como habilidades actuales.</p>
+                <p className="mt-1 text-caption-xs text-text-muted">Estas acciones son recomendaciones y no se agregan al CV como habilidades actuales.</p>
                 <ul className="mt-3 space-y-4">{result.developmentRecommendations.map(renderRecommendation)}</ul>
               </section>
             )}

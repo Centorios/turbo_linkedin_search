@@ -99,7 +99,7 @@ describe("Página de acceso social", () => {
     render(<AuthPage />);
     expect(screen.getByTestId("auth-message").textContent).toContain("Tu sesión expiró");
     fireEvent.click(screen.getByTestId("auth-submit"));
-    expect(screen.getByRole("alert").textContent).toContain("Introduce tu correo");
+    expect(screen.getByRole("alert").textContent).toContain("Ingresá tu correo");
     expect(mocks.signin).not.toHaveBeenCalled();
   });
 });

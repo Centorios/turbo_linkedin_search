@@ -10,7 +10,7 @@ const extensionByMimeType: Record<string, string> = {
 
 export function validateProfilePhoto(file: File): string | null {
   if (!extensionByMimeType[file.type]) {
-    return "Selecciona una imagen JPEG, PNG o WebP.";
+    return "Seleccioná una imagen JPEG, PNG o WebP.";
   }
   if (file.size > maxPhotoSize) {
     return "La foto debe pesar 5 MB o menos.";
@@ -24,7 +24,7 @@ export async function uploadProfilePhoto(file: File): Promise<string> {
 
   const supabase = createSupabaseBrowserClient();
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user.id) throw new Error("La sesión ha expirado. Vuelve a iniciar sesión.");
+  if (!session?.user.id) throw new Error("La sesión ha expirado. Volvé a iniciar sesión.");
 
   const path = `${session.user.id}/${crypto.randomUUID()}.${extensionByMimeType[file.type]}`;
   const { error } = await supabase.storage.from(bucketName).upload(path, file, {
@@ -32,7 +32,7 @@ export async function uploadProfilePhoto(file: File): Promise<string> {
     contentType: file.type,
     upsert: false,
   });
-  if (error) throw new Error("No se pudo subir la foto. Inténtalo de nuevo.");
+  if (error) throw new Error("No se pudo subir la foto. Intentá de nuevo.");
   return path;
 }
 

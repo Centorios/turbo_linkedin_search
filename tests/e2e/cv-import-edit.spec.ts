@@ -187,7 +187,7 @@ async function signIn(page: Page) {
   await expect(page).toHaveURL(/\/generate$/);
   const deferProfile = page.getByRole("button", { name: "Completar más tarde" });
   if (await deferProfile.isVisible()) await deferProfile.click();
-  await expect(page.getByRole("region", { name: "Edita un CV existente" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Editá un CV existente" })).toBeVisible();
 }
 
 test.describe("Edición de CV existente desde PDF", () => {
@@ -195,7 +195,7 @@ test.describe("Edición de CV existente desde PDF", () => {
     const captured = await installMocks(page);
     await signIn(page);
 
-    await page.getByLabel("Selecciona el CV en PDF").setInputFiles({
+    await page.getByLabel("Seleccioná el CV en PDF").setInputFiles({
       name: "ana.pdf",
       mimeType: "application/pdf",
       buffer: originalPdf,
@@ -203,7 +203,7 @@ test.describe("Edición de CV existente desde PDF", () => {
     await page.getByRole("button", { name: "Importar CV" }).click();
     await expect(page.getByRole("status")).toContainText("CV importado: ana.pdf");
 
-    await page.getByRole("textbox", { name: "¿Qué quieres cambiar?" }).fill("Agrega mi experiencia en Acme");
+    await page.getByRole("textbox", { name: "¿Qué querés cambiar?" }).fill("Agrega mi experiencia en Acme");
     await page.getByRole("button", { name: "Proponer cambios" }).click();
     await page.getByLabel("¿En qué fecha comenzó?").fill("2022");
     await page.getByRole("button", { name: "Enviar respuestas" }).click();
@@ -212,7 +212,7 @@ test.describe("Edición de CV existente desde PDF", () => {
     await expect(page.getByTestId("cv-import-changed-sections")).toContainText("experiencia");
     await expectPreviewText(page, { contains: ["Acme"] });
 
-    await page.getByRole("textbox", { name: "¿Qué quieres ajustar de esta propuesta?" })
+    await page.getByRole("textbox", { name: "¿Qué querés ajustar de esta propuesta?" })
       .fill("Aclara que desarrollé servicios internos para Acme");
     await page.getByRole("button", { name: "Proponer ajuste" }).click();
     await expect(page.getByRole("region", { name: "Revisión de la propuesta" })).toBeVisible();
@@ -238,18 +238,19 @@ test.describe("Edición de CV existente desde PDF", () => {
     }, sourceId);
     expect(otherUserStatus).toBe(404);
 
-    page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Eliminar CV importado" }).click();
+    await expect(page.getByRole("alertdialog", { name: "¿Eliminar el PDF importado?" })).toBeVisible();
+    await page.getByTestId("confirm-dialog-confirm").click();
     await expect(page.getByRole("status")).toContainText("Fuente eliminada.");
     expect(captured.deletedSourceId).toBe(sourceId);
-    await expect(page.getByLabel("Selecciona el CV en PDF")).toBeVisible();
+    await expect(page.getByLabel("Seleccioná el CV en PDF")).toBeVisible();
   });
 
   test("muestra un error recuperable cuando el PDF no contiene texto extraíble", async ({ page }) => {
     await installMocks(page, "El PDF no contiene texto extraíble");
     await signIn(page);
 
-    await page.getByLabel("Selecciona el CV en PDF").setInputFiles({
+    await page.getByLabel("Seleccioná el CV en PDF").setInputFiles({
       name: "escaneado.pdf",
       mimeType: "application/pdf",
       buffer: originalPdf,
@@ -257,7 +258,7 @@ test.describe("Edición de CV existente desde PDF", () => {
     await page.getByRole("button", { name: "Importar CV" }).click();
 
     await expect(page.getByTestId("cv-import-error")).toContainText("El PDF no contiene texto extraíble");
-    await expect(page.getByLabel("Selecciona el CV en PDF")).toBeVisible();
+    await expect(page.getByLabel("Seleccioná el CV en PDF")).toBeVisible();
     await expect(page.getByRole("button", { name: "Importar CV" })).toBeEnabled();
   });
 });

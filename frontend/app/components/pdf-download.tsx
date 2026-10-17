@@ -55,7 +55,7 @@ export function PdfDownload({ cv, template }: { cv: StructuredCv; template: CvTe
       {status === "error" && (
         <p role="alert" data-testid="pdf-download-error" className="flex items-center gap-1.5 text-caption-xs text-danger">
           <AlertIcon className="h-3.5 w-3.5 shrink-0" />
-          No se pudo generar el PDF. Inténtalo de nuevo.
+          No se pudo generar el PDF. Intentá de nuevo.
         </p>
       )}
     </div>

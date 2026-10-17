@@ -46,10 +46,10 @@ function profileFormValues(profile: BasicProfile | null, email: string): BasicPr
 function validateProfile(profile: BasicProfile): ProfileErrors {
   const errors: ProfileErrors = {};
   if (!profile.fullName.trim()) {
-    errors.fullName = "Introduce tu nombre completo.";
+    errors.fullName = "Ingresá tu nombre completo.";
   }
   if (profile.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(profile.email)) {
-    errors.email = "Introduce un correo válido o deja el campo vacío.";
+    errors.email = "Ingresá un correo válido o dejá el campo vacío.";
   }
   for (const field of ["linkedin", "website"] as const) {
     const value = profile[field];
@@ -57,10 +57,10 @@ function validateProfile(profile: BasicProfile): ProfileErrors {
     try {
       const url = new URL(value);
       if (url.protocol !== "http:" && url.protocol !== "https:") {
-        errors[field] = "Usa una dirección que empiece por http:// o https://.";
+        errors[field] = "Usá una dirección que empiece con http:// o https://.";
       }
     } catch {
-      errors[field] = "Introduce una dirección web válida o deja el campo vacío.";
+      errors[field] = "Ingresá una dirección web válida o dejá el campo vacío.";
     }
   }
   return errors;
@@ -101,7 +101,7 @@ export function BasicProfileModal({
     if (!values.photoPath) return () => { active = false; };
     void getProfilePhotoUrl(values.photoPath)
       .then((url) => { if (active) setStoredPhotoUrl(url); })
-      .catch(() => { if (active) setPhotoError("No se pudo cargar la foto guardada. Puedes seleccionar otra."); });
+      .catch(() => { if (active) setPhotoError("No se pudo cargar la foto guardada. Podés seleccionar otra."); });
     return () => { active = false; };
   }, [values.photoPath]);
 
@@ -170,12 +170,12 @@ export function BasicProfileModal({
       >
         <header>
           <h2 id="basic-profile-title" className="text-headline-lg text-text">
-            {isEditing ? "Editar perfil" : "Completa tu perfil básico"}
+            {isEditing ? "Editar perfil" : "Completá tu perfil básico"}
           </h2>
           <p className="mt-2 text-body-sm text-text-muted">
             {isEditing
-              ? "Actualiza los datos personales que aparecerán en tus CVs."
-              : "Estos datos se usarán en la información personal de tus CVs. Puedes completarlos ahora o más tarde."}
+              ? "Actualizá los datos personales que aparecerán en tus CVs."
+              : "Estos datos se usarán en la información personal de tus CVs. Podés completarlos ahora o más tarde."}
           </p>
         </header>
 

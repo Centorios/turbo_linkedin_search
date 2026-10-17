@@ -7,7 +7,7 @@ export type AuthActionResult = {
 };
 
 export async function signInWithGoogle(): Promise<AuthActionResult> {
-  const message = "No se pudo iniciar sesión con Google. Inténtalo de nuevo o usa tu correo y contraseña.";
+  const message = "No se pudo iniciar sesión con Google. Intentá de nuevo o usá tu correo y contraseña.";
 
   try {
     const supabase = createSupabaseBrowserClient();

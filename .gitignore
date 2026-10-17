@@ -24,6 +24,9 @@ test-results/
 !.env.example
 !.env.*.example
 
+# Capturas de la sesión de Playwright MCP (las genera el agente, no son parte del repo)
+.playwright-mcp/
+
 # Editors and OS
 .vscode/
 .idea/

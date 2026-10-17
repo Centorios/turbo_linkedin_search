@@ -48,7 +48,7 @@ export async function requestJobs<T>(
   const supabase = createSupabaseBrowserClient();
   const { data: { session } } = await supabase.auth.getSession();
   options.signal.throwIfAborted();
-  if (!session?.access_token) throw new Error("La sesión ha expirado. Vuelve a iniciar sesión.");
+  if (!session?.access_token) throw new Error("La sesión ha expirado. Volvé a iniciar sesión.");
   if (session.user.id !== userId) throw new DOMException("La cuenta cambió", "AbortError");
 
   let response: Response;
@@ -66,7 +66,7 @@ export async function requestJobs<T>(
   } catch (error) {
     options.signal.throwIfAborted();
     if (error instanceof DOMException && error.name === "AbortError") throw error;
-    throw new Error("No se pudo conectar con el servidor. Inténtalo de nuevo.");
+    throw new Error("No se pudo conectar con el servidor. Intentá de nuevo.");
   }
   options.signal.throwIfAborted();
   if (!response.ok) {
@@ -76,10 +76,10 @@ export async function requestJobs<T>(
       const { data: { session: current } } = await supabase.auth.getSession();
       options.signal.throwIfAborted();
       if (current?.access_token === session.access_token) await supabase.auth.signOut();
-      throw new Error("Tu sesión expiró. Vuelve a iniciar sesión.");
+      throw new Error("Tu sesión expiró. Volvé a iniciar sesión.");
     }
     throw new JobsApiError(
-      payload?.detail?.message ?? "No se pudo consultar empleos. Inténtalo de nuevo.",
+      payload?.detail?.message ?? "No se pudo consultar empleos. Intentá de nuevo.",
       response.status,
     );
   }

@@ -74,7 +74,7 @@ export function CvPreview({ cv, template }: { cv: StructuredCv; template: CvTemp
             data-testid="cv-preview-unsupported"
             className="absolute inset-0 flex items-center justify-center p-6 text-center text-body-sm text-text-muted"
           >
-            Este navegador no puede mostrar el PDF dentro de la página. Ábrelo con el enlace de abajo.
+            Este navegador no puede mostrar el PDF dentro de la página. Abrilo con el enlace de abajo.
           </p>
         )}
         {state.status === "loading" && (
@@ -93,7 +93,7 @@ export function CvPreview({ cv, template }: { cv: StructuredCv; template: CvTemp
             className="absolute inset-0 flex items-center justify-center gap-2 p-6 text-center text-body-sm text-danger"
           >
             <AlertIcon className="h-4 w-4 shrink-0" />
-            No se pudo generar la vista previa. Cambia de plantilla o vuelve a intentarlo.
+            No se pudo generar la vista previa. Cambiá de plantilla o volvé a intentarlo.
           </p>
         )}
       </section>

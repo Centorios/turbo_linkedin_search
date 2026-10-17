@@ -80,7 +80,6 @@ beforeEach(() => {
   mocks.saveCvVersion.mockResolvedValue(saved);
   mocks.downloadCvSource.mockResolvedValue(new Blob(["%PDF-source"]));
   mocks.deleteCvSource.mockResolvedValue(undefined);
-  vi.stubGlobal("confirm", vi.fn(() => true));
 });
 
 afterEach(() => {
@@ -98,7 +97,7 @@ describe("Importación y edición de CV PDF", () => {
     );
     render(<CvImportEditor />);
     const file = new File(["%PDF-1.4"], "ana.pdf", { type: "application/pdf" });
-    fireEvent.change(screen.getByLabelText("Selecciona el CV en PDF"), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText("Seleccioná el CV en PDF"), { target: { files: [file] } });
     fireEvent.click(screen.getByRole("button", { name: "Importar CV" }));
 
     expect(screen.getByTestId("cv-import-status").textContent).toBe("Importando el PDF...");
@@ -109,11 +108,11 @@ describe("Importación y edición de CV PDF", () => {
   it("solicita aclaraciones, permite iterar la propuesta y la guarda solo al confirmar", async () => {
     render(<CvImportEditor />);
     const file = new File(["%PDF-1.4"], "ana.pdf", { type: "application/pdf" });
-    fireEvent.change(screen.getByLabelText("Selecciona el CV en PDF"), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText("Seleccioná el CV en PDF"), { target: { files: [file] } });
     fireEvent.click(screen.getByRole("button", { name: "Importar CV" }));
 
     await screen.findByTestId("cv-import-status");
-    fireEvent.change(screen.getByLabelText("¿Qué quieres cambiar?"), {
+    fireEvent.change(screen.getByLabelText("¿Qué querés cambiar?"), {
       target: { value: "Agrega mi experiencia en Acme" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Proponer cambios" }));
@@ -126,7 +125,7 @@ describe("Importación y edición de CV PDF", () => {
     expect(mocks.saveCvVersion).not.toHaveBeenCalled();
 
     mocks.proposeCvEdit.mockResolvedValueOnce(proposal);
-    fireEvent.change(screen.getByLabelText("¿Qué quieres ajustar de esta propuesta?"), {
+    fireEvent.change(screen.getByLabelText("¿Qué querés ajustar de esta propuesta?"), {
       target: { value: "Quita una frase del resumen" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Proponer ajuste" }));
@@ -153,13 +152,13 @@ describe("Importación y edición de CV PDF", () => {
     mocks.importCv.mockRejectedValueOnce(new Error("El PDF no contiene texto extraíble"));
     render(<CvImportEditor />);
     fireEvent.click(screen.getByRole("button", { name: "Importar CV" }));
-    expect((await screen.findByRole("alert")).textContent).toContain("Selecciona el archivo PDF");
+    expect((await screen.findByRole("alert")).textContent).toContain("Seleccioná el archivo PDF");
     const file = new File(["%PDF-1.4"], "scan.pdf", { type: "application/pdf" });
-    fireEvent.change(screen.getByLabelText("Selecciona el CV en PDF"), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText("Seleccioná el CV en PDF"), { target: { files: [file] } });
     fireEvent.click(screen.getByRole("button", { name: "Importar CV" }));
 
     expect((await screen.findByRole("alert")).textContent).toContain("El PDF no contiene texto extraíble");
-    expect((screen.getByLabelText("Selecciona el CV en PDF") as HTMLInputElement).disabled).toBe(false);
+    expect((screen.getByLabelText("Seleccioná el CV en PDF") as HTMLInputElement).disabled).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Importar CV" }));
     expect((await screen.findByTestId("cv-import-status")).textContent).toBe("CV importado: ana.pdf");
   });
@@ -167,13 +166,14 @@ describe("Importación y edición de CV PDF", () => {
   it("descarga el original y permite eliminar su fuente", async () => {
     render(<CvImportEditor />);
     const file = new File(["%PDF-1.4"], "ana.pdf", { type: "application/pdf" });
-    fireEvent.change(screen.getByLabelText("Selecciona el CV en PDF"), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText("Seleccioná el CV en PDF"), { target: { files: [file] } });
     fireEvent.click(screen.getByRole("button", { name: "Importar CV" }));
     await screen.findByTestId("cv-import-status");
 
     fireEvent.click(screen.getByRole("button", { name: "Descargar PDF original" }));
     await waitFor(() => expect(mocks.downloadCvSource).toHaveBeenCalledWith("source-1"));
     fireEvent.click(screen.getByRole("button", { name: "Eliminar CV importado" }));
+    fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
     await waitFor(() => expect(mocks.deleteCvSource).toHaveBeenCalledWith("source-1"));
     expect((await screen.findByTestId("cv-import-status")).textContent).toBe("Fuente eliminada.");
   });

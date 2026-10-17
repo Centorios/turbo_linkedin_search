@@ -46,7 +46,7 @@ export function useMatchController({
         setError(
           cause instanceof Error
             ? cause.message
-            : "No se pudieron recuperar las recomendaciones. Inténtalo de nuevo.",
+            : "No se pudieron recuperar las recomendaciones. Intentá de nuevo.",
         );
         setStatus("error");
       })
@@ -89,10 +89,10 @@ export function useMatchController({
       if (controller.signal.aborted && !timedOut) return;
       setError(
         timedOut
-          ? "El análisis superó el tiempo de espera. Puedes intentarlo de nuevo."
+          ? "El análisis superó el tiempo de espera. Podés intentarlo de nuevo."
           : cause instanceof Error
             ? cause.message
-            : "No se pudo completar el análisis. Inténtalo de nuevo.",
+            : "No se pudo completar el análisis. Intentá de nuevo.",
       );
       setStatus(timedOut ? "timeout" : "error");
     } finally {
@@ -178,7 +178,7 @@ export function MatchPanel({
             : match.error
               ? match.error
               : !searchId
-                ? "No se pudo guardar esta búsqueda; realiza otra búsqueda para habilitar Match."
+                ? "No se pudo guardar esta búsqueda; realizá otra búsqueda para habilitar Match."
                 : ""}
       </p>
     </section>
@@ -213,10 +213,10 @@ export function MatchResults({ match, sources = [] }: { match: MatchController; 
           className="mt-4 rounded-lg bg-subtle p-3 text-body-sm text-text-muted"
         >
           {sourcesPending
-            ? "Resultado provisional: todavía se están obteniendo ofertas. Cuando termine la búsqueda, recalcula Match para incluir las nuevas ofertas."
+            ? "Resultado provisional: todavía se están obteniendo ofertas. Cuando termine la búsqueda, recalculá Match para incluir las nuevas ofertas."
             : sourcesFailed
               ? "Resultado parcial: alguna fuente falló o agotó su tiempo de espera. El análisis utiliza las ofertas disponibles."
-              : "Este análisis puede no incluir todas las ofertas de la búsqueda. Recalcula Match para actualizar las recomendaciones."}
+              : "Este análisis puede no incluir todas las ofertas de la búsqueda. Recalculá Match para actualizar las recomendaciones."}
         </p>
       )}
       {result.resumeChanged && (
