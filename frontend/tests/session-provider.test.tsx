@@ -47,7 +47,7 @@ beforeEach(() => {
 });
 
 describe("Sesiones de proveedores externos", () => {
-  it.each(["google", "azure"])("restaura %s y conserva onboarding al recargar", async (provider) => {
+  it.each(["google"])("restaura %s y conserva onboarding al recargar", async (provider) => {
     mocks.getSession.mockResolvedValue({ data: { session: session(provider) } });
     const first = render(<SessionProvider><Probe /></SessionProvider>);
     await waitFor(() => expect(screen.getByTestId("session-state").textContent).toBe(`user-${provider}:missing`));
@@ -58,7 +58,7 @@ describe("Sesiones de proveedores externos", () => {
     expect(mocks.unsubscribe).toHaveBeenCalledTimes(1);
   });
 
-  it.each(["google", "azure"])("limpia la sesión %s al salir y bloquea el flujo privado", async (provider) => {
+  it.each(["google"])("limpia la sesión %s al salir y bloquea el flujo privado", async (provider) => {
     mocks.getSession.mockResolvedValue({ data: { session: session(provider) } });
     render(<SessionProvider><Probe /></SessionProvider>);
     await waitFor(() => expect(screen.getByTestId("session-state").textContent).toBe(`user-${provider}:missing`));

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { expectPreviewText } from "./pdf-preview";
 
 const owner = "00000000-0000-0000-0000-000000000001";
 const cv = {
@@ -55,8 +56,7 @@ test("recupera snapshot original, pagina y descarga ambas plantillas sin IA", as
   await expect(page.getByTestId("history-next")).toBeDisabled();
   await page.getByTestId("history-previous").click();
   await page.getByTestId(`history-item-${id(21)}`).click();
-  await expect(page.getByTestId("cv-preview")).toContainText("Ana Histórica");
-  await expect(page.getByTestId("cv-preview")).not.toContainText("Nombre actual");
+  await expectPreviewText(page, { contains: ["Ana Histórica"], excludes: ["Nombre actual"] });
   for (const template of ["ats", "creative"]) {
     await page.getByTestId(`template-${template}`).click();
     const download = page.waitForEvent("download");

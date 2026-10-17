@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { expectPreviewText } from "./pdf-preview";
 
 const sourceId = "00000000-0000-0000-0000-000000000011";
 const baseResumeId = "00000000-0000-0000-0000-000000000012";
@@ -209,7 +210,7 @@ test.describe("Edición de CV existente desde PDF", () => {
 
     await expect(page.getByRole("region", { name: "Revisión de la propuesta" })).toBeVisible();
     await expect(page.getByTestId("cv-import-changed-sections")).toContainText("experiencia");
-    await expect(page.getByRole("region", { name: "Vista previa del CV" })).toContainText("Acme");
+    await expectPreviewText(page, { contains: ["Acme"] });
 
     await page.getByRole("textbox", { name: "¿Qué quieres ajustar de esta propuesta?" })
       .fill("Aclara que desarrollé servicios internos para Acme");

@@ -2,9 +2,9 @@
 
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn, signInWithProvider, signUp, type AuthProvider } from "./actions";
+import { signIn, signInWithGoogle, signUp } from "./actions";
 import { BrandLogo } from "../components/brand-logo";
-import { AlertIcon, CheckCircleIcon, EyeIcon, EyeOffIcon, SpinnerIcon } from "../components/icons";
+import { AlertIcon, CheckCircleIcon, EyeIcon, EyeOffIcon, GoogleIcon, SpinnerIcon } from "../components/icons";
 
 type AuthMode = "sign-in" | "sign-up";
 
@@ -32,19 +32,19 @@ function AuthPageContent() {
     searchParams.get("reason") === "session-expired" ? "Tu sesión expiró. Vuelve a iniciar sesión." : null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pendingProvider, setPendingProvider] = useState<AuthProvider | null>(null);
-  const isBusy = isSubmitting || pendingProvider !== null;
+  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
+  const isBusy = isSubmitting || isConnectingGoogle;
 
-  async function handleProviderSignIn(provider: AuthProvider) {
+  async function handleGoogleSignIn() {
     if (isBusy) return;
     setError(null);
     setMessage(null);
-    setPendingProvider(provider);
-    const result = await signInWithProvider(provider);
+    setIsConnectingGoogle(true);
+    const result = await signInWithGoogle();
 
     if (result.error) {
       setError(result.error);
-      setPendingProvider(null);
+      setIsConnectingGoogle(false);
     }
   }
 
@@ -139,25 +139,17 @@ function AuthPageContent() {
         </div>
 
         <div className="workspace-card mt-4 w-full rounded-2xl border border-border bg-surface p-6 shadow-sm">
-          <div className="mb-5 flex flex-col gap-3" aria-label="Acceso con proveedores">
-            {([
-              { provider: "google", label: "Google", testId: "auth-google" },
-              { provider: "azure", label: "Microsoft", testId: "auth-microsoft" },
-            ] as const).map(({ provider, label, testId }) => (
-              <button
-                key={provider}
-                type="button"
-                data-testid={testId}
-                disabled={isBusy}
-                aria-busy={pendingProvider === provider}
-                onClick={() => void handleProviderSignIn(provider)}
-                className="focus-ring flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-2.5 text-body-sm font-semibold text-text transition-colors hover:bg-subtle disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {pendingProvider === provider && <SpinnerIcon className="h-4 w-4" />}
-                {pendingProvider === provider ? `Conectando con ${label}...` : `Continuar con ${label}`}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            data-testid="auth-google"
+            disabled={isBusy}
+            aria-busy={isConnectingGoogle}
+            onClick={() => void handleGoogleSignIn()}
+            className="focus-ring mb-5 flex w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-surface px-4 py-2.5 text-body-sm font-semibold text-text transition-colors hover:bg-subtle disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isConnectingGoogle ? <SpinnerIcon className="h-5 w-5" /> : <GoogleIcon className="h-5 w-5" />}
+            {isConnectingGoogle ? "Conectando con Google..." : "Continuar con Google"}
+          </button>
           <p className="mb-5 text-center text-caption-xs text-text-muted">O usa tu correo y contraseña</p>
           <form method="post" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
             <div>

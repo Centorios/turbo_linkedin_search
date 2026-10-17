@@ -1,5 +1,7 @@
 # Feature Specification: Acceso con Google y Microsoft
 
+> **Actualización 2026-10-16:** el acceso con Microsoft (User Story 2 y la parte de Microsoft de FR-001) se descartó porque el equipo no tiene acceso al portal de Microsoft Entra para registrar la aplicación. Solo se mantiene Google; el resto de este documento queda como registro histórico.
+
 **Feature Branch**: `feature_GoogleLogin`
 **Created**: 2026-10-14
 **Status**: Ready for planning

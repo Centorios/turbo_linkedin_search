@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { PDFParse } from "pdf-parse";
+import { pdfText, readPreviewText } from "./pdf-preview";
 
 const testEmail = "ana@example.test";
 const testUserId = "00000000-0000-0000-0000-000000000001";
@@ -80,12 +80,7 @@ async function generateCv(page: Page, cv: unknown) {
 }
 
 async function readPdfText(path: string): Promise<string> {
-  const parser = new PDFParse({ data: readFileSync(path) });
-  try {
-    return (await parser.getText()).text.replace(/\s+/g, " ").toLocaleLowerCase();
-  } finally {
-    await parser.destroy();
-  }
+  return pdfText(readFileSync(path));
 }
 
 function expectOrderedContent(text: string, entries: string[]) {
@@ -98,16 +93,15 @@ function expectOrderedContent(text: string, entries: string[]) {
 }
 
 async function expectPdfMatchesPreview(page: Page, path: string, template: "ats" | "creative") {
-  const previewText = (await page.getByRole("region", { name: "Vista previa del CV" }).innerText())
-    .replace(/\s+/g, " ")
-    .toLocaleLowerCase();
-  const pdfText = await readPdfText(path);
+  const previewText = await readPreviewText(page);
+  const downloadedText = await readPdfText(path);
   const entries = template === "ats"
     ? ["Ana García", "ana@example.com", "Senior Designer", "Acme", "Lideró el rediseño", "Diseño Gráfico", "Figma", "Comunicación"]
     : ["Perfil profesional", "Ana García", "ana@example.com", "Product designer", "Trayectoria", "Senior Designer", "Acme", "Lideró el rediseño", "Competencias", "Figma", "Comunicación", "Formación", "Diseño Gráfico"];
 
-  expectOrderedContent(previewText, entries);
-  expectOrderedContent(pdfText, entries);
+  expectOrderedContent(downloadedText, entries);
+  // The preview is the same PDF that gets downloaded.
+  expect(previewText).toBe(downloadedText);
 }
 
 test.describe("Descarga de CV en PDF", () => {
@@ -148,7 +142,7 @@ test.describe("Descarga de CV en PDF", () => {
     await expectPdfMatchesPreview(page, atsPath!, "ats");
 
     await page.getByTestId("template-creative").click();
-    await expect(page.getByTestId("template-creativo-pdf")).toBeVisible();
+    await expect.poll(async () => readPreviewText(page)).toContain("perfil profesional");
 
     const [creativeDownload] = await Promise.all([page.waitForEvent("download"), page.getByTestId("pdf-download").click()]);
     expect(creativeDownload.suggestedFilename()).toBe("ana-garcia-creativo.pdf");

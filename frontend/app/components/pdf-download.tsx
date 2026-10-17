@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import type { StructuredCv } from "../types/cv";
 import type { CvTemplate } from "./cv-preview";
 import { AlertIcon, DownloadIcon, SpinnerIcon } from "./icons";
-import { getProfilePhotoUrl } from "../lib/profile-photo-client";
+import { renderCvPdf } from "../lib/cv-pdf";
 
 type DownloadStatus = "idle" | "downloading" | "error";
 
@@ -20,21 +20,10 @@ export function PdfDownload({ cv, template }: { cv: StructuredCv; template: CvTe
     setStatus("downloading");
 
     try {
-      const [{ pdf }, { CvPdfDocument, buildCvFileName }] = await Promise.all([
-        import("@react-pdf/renderer"),
+      const [blob, { buildCvFileName }] = await Promise.all([
+        renderCvPdf(cv, template),
         import("../templates/cv-pdf-document"),
       ]);
-      let downloadableCv = cv;
-      if (template === "creative" && cv.personalInfo.photoPath) {
-        try {
-          const photoUrl = await getProfilePhotoUrl(cv.personalInfo.photoPath);
-          downloadableCv = { ...cv, personalInfo: { ...cv.personalInfo, photoUrl } };
-        } catch {
-          // Historical photos can be removed; the document remains exportable.
-          downloadableCv = { ...cv, personalInfo: { ...cv.personalInfo, photoUrl: null } };
-        }
-      }
-      const blob = await pdf(<CvPdfDocument cv={downloadableCv} template={template} />).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
