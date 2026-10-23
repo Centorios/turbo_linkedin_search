@@ -10,7 +10,8 @@ export interface CvSource {
 
 export interface ResumeVersion {
   id: string;
-  sourceId: string;
+  /** null for versions of a generated CV (no imported PDF). */
+  sourceId: string | null;
   parentResumeId: string | null;
   createdAt: string;
   data: StructuredCv;

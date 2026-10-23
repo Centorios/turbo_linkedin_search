@@ -179,3 +179,38 @@ def test_import_works_with_the_real_supabase_query_builder() -> None:
     assert set(inserted) == {"cv_sources", "resumes"}
     storage.upload.assert_called_once()
     storage.remove.assert_not_called()
+
+
+def test_version_without_source_works_with_the_real_supabase_query_builder() -> None:
+    """A version saved from a generated CV has no PDF source (source_id = null)."""
+    from supabase import create_client
+
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.method == "GET":
+            # Idempotency lookup: PostgREST answers an empty list, which maybe_single() turns into None.
+            return httpx.Response(200, json=[])
+        row = {"id": "00000000-0000-0000-0000-000000000099", "created_at": "2026-10-17T12:00:00Z", **json.loads(request.content)}
+        return httpx.Response(201, json=[row])
+
+    real_client = create_client("https://example.supabase.co", "x" * 40)
+    session = real_client.postgrest.session
+    real_client.postgrest.session = httpx.Client(
+        base_url=session.base_url, headers=session.headers, transport=httpx.MockTransport(handler)
+    )
+    client = SimpleNamespace(table=real_client.table, storage=MagicMock())
+
+    version = CvImportRepository(client).create_version(
+        user_id=USER_ID,
+        source_id=None,
+        request_id="00000000-0000-0000-0000-000000000020",
+        parent_resume_id=RESUME_ID,
+        data={"summary": "Editado"},
+    )
+
+    assert version["source_id"] is None
+    assert version["parent_resume_id"] == RESUME_ID
+    inserted = json.loads(requests[-1].content)
+    assert inserted["source_id"] is None and inserted["user_id"] == USER_ID

@@ -146,7 +146,7 @@ class CvImportRepository:
     def create_version(
         self,
         user_id: str,
-        source_id: str,
+        source_id: str | None,
         request_id: str,
         parent_resume_id: str,
         data: dict[str, Any],

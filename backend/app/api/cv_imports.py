@@ -10,7 +10,9 @@ from app.models.cv_import import (
     CvImportResponse,
     EditRequest,
     EditResponse,
+    ResumeEditRequest,
     ResumeVersion,
+    ResumeVersionRequest,
     SaveVersionRequest,
 )
 from app.models.generate_cv import parse_request_id
@@ -25,6 +27,8 @@ from app.services.cv_import import (
 
 
 router = APIRouter(prefix="/api/cv-imports", tags=["cv-imports"])
+# Editing any version of the history reuses the import editor's flow.
+resume_edits_router = APIRouter(prefix="/api/resumes", tags=["resumes"])
 logger = logging.getLogger(__name__)
 MAX_PDF_BYTES = 10 * 1024 * 1024
 
@@ -171,6 +175,53 @@ def _request_uuid(value: str | None) -> UUID:
         return parse_request_id(value)
     except ValueError as exc:
         raise _error(status.HTTP_400_BAD_REQUEST, "invalid_idempotency_key", "Idempotency-Key debe ser un UUID") from exc
+
+
+@resume_edits_router.post("/{resume_id}/edits", response_model=EditResponse)
+async def propose_resume_edit(
+    resume_id: UUID,
+    payload: ResumeEditRequest,
+    user_id: Annotated[str, Depends(require_user_id)],
+    service: Annotated[CvImportService, Depends(get_cv_import_service)],
+) -> EditResponse:
+    try:
+        return await service.propose_resume_edit(user_id, str(resume_id), payload)
+    except CvSourceNotFoundError:
+        raise _resume_not_found()
+    except InvalidCvImportResponseError:
+        raise _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_model_response", "La propuesta de edición no es válida")
+    except AzureOpenAIError:
+        raise _error(status.HTTP_502_BAD_GATEWAY, "provider_unavailable", "El servicio de edición no está disponible")
+    except Exception as exc:
+        logger.error("resume_edit_proposal_failed", extra={"error_type": type(exc).__name__})
+        raise _error(status.HTTP_500_INTERNAL_SERVER_ERROR, "cv_edit_failed", "No se pudo proponer el cambio") from exc
+
+
+@resume_edits_router.post("/{resume_id}/versions", response_model=ResumeVersion, status_code=status.HTTP_201_CREATED)
+def save_resume_version(
+    resume_id: UUID,
+    payload: ResumeVersionRequest,
+    user_id: Annotated[str, Depends(require_user_id)],
+    service: Annotated[CvImportService, Depends(get_cv_import_service)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> ResumeVersion:
+    request_id = _request_uuid(idempotency_key)
+    try:
+        return service.save_resume_version(user_id, str(resume_id), str(request_id), payload.data)
+    except CvSourceNotFoundError:
+        raise _resume_not_found()
+    except ValueError as exc:
+        raise _error(status.HTTP_409_CONFLICT, "idempotency_conflict", "La clave ya se utilizó para otra versión") from exc
+    except InvalidCvImportResponseError:
+        raise _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_cv", "El CV no es válido")
+    except Exception as exc:
+        logger.error("resume_version_save_failed", extra={"error_type": type(exc).__name__})
+        raise _error(status.HTTP_500_INTERNAL_SERVER_ERROR, "cv_version_save_failed", "No se pudo guardar la versión") from exc
+
+
+def _resume_not_found() -> HTTPException:
+    # Same answer for a missing version and another account's version.
+    return _error(status.HTTP_404_NOT_FOUND, "resume_not_found", "No encontramos esa versión del CV.")
 
 
 def _not_found() -> HTTPException:

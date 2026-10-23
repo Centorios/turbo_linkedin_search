@@ -62,6 +62,34 @@ export async function saveCvVersion(
   return (await response.json()) as ResumeVersion;
 }
 
+// Editing a history version: same flow as an imported PDF, keyed by the version.
+export async function proposeResumeEdit(
+  resumeId: string,
+  instruction: string,
+  answers: string[] = [],
+  currentCv?: StructuredCv,
+): Promise<EditResponse> {
+  const response = await request(`/api/resumes/${encodeURIComponent(resumeId)}/edits`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ instruction, answers, ...(currentCv ? { currentCv } : {}) }),
+  });
+  return (await response.json()) as EditResponse;
+}
+
+export async function saveResumeVersion(
+  resumeId: string,
+  data: StructuredCv,
+  requestId = crypto.randomUUID(),
+): Promise<ResumeVersion> {
+  const response = await request(`/api/resumes/${encodeURIComponent(resumeId)}/versions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Idempotency-Key": requestId },
+    body: JSON.stringify({ data }),
+  });
+  return (await response.json()) as ResumeVersion;
+}
+
 export async function downloadCvSource(sourceId: string): Promise<Blob> {
   const response = await request(`/api/cv-imports/${encodeURIComponent(sourceId)}/file`, { method: "GET" });
   return response.blob();

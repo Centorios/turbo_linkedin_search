@@ -234,6 +234,21 @@ cuenta y los datos no se guardan en almacenamiento del navegador.
 Pruebas específicas: `tests/integration/test_resume_history.py`,
 `frontend/tests/resume-history.test.tsx` y `tests/e2e/resume-history.spec.ts`.
 
+## Editar una versión del historial
+
+En **Historial**, al abrir una versión aparece **Editar CV** junto a "Descargar PDF". Lleva a
+`/generate?editar=<resumeId>#editar-cv`, donde "Editá un CV existente" abre esa versión ya cargada.
+El flujo es el mismo que con un PDF importado: se le piden cambios a la IA, responde preguntas si
+le faltan datos, se revisa la propuesta y se guarda.
+
+- Guardar crea **siempre una versión nueva** (`parent_resume_id` = la versión editada). La original no se modifica y la nueva aparece primera en el Historial.
+- Si la versión venía de un PDF importado, la nueva conserva su `source_id`. Si venía de un CV generado, queda con `source_id` nulo.
+- Endpoints (mismo servicio que la importación, `CvImportService`):
+  - `POST /api/resumes/{resume_id}/edits` con `instruction`, `answers` y `currentCv` opcional. Responde `needs_input` o `ready`, como `/api/cv-imports/{id}/edits`.
+  - `POST /api/resumes/{resume_id}/versions` con `Idempotency-Key` y `{ "data": StructuredCv }`. Responde la versión creada.
+  - Una versión inexistente o de otra cuenta responde 404 `resume_not_found`, sin distinguir los dos casos.
+- No requiere migraciones nuevas: usa las columnas de `009_cv_import_sources.sql`.
+
 ## Búsqueda de empleos en Argentina
 
 **Empleos** (`/jobs`) muestra los CVs guardados de la cuenta. Al elegir uno, el backend

@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppHeader } from "../components/app-header";
 import { BasicProfileModal } from "../components/basic-profile-modal";
 import { TrajectoryAssistant } from "../components/trajectory-assistant";
@@ -272,7 +273,9 @@ export default function GeneratePage() {
             )}
           </section>
         </div>
-        <CvImportEditor />
+        <Suspense fallback={<CvImportEditor userId={session?.user.id ?? null} />}>
+          <CvImportEditorFromQuery userId={session?.user.id ?? null} />
+        </Suspense>
       </main>
       {isAssistantOpen && (
         <TrajectoryAssistant
@@ -292,4 +295,10 @@ export default function GeneratePage() {
       )}
     </div>
   );
+}
+
+// "Editar CV" in the history links here with ?editar=<resumeId>#editar-cv.
+function CvImportEditorFromQuery({ userId }: { userId: string | null }) {
+  const resumeId = useSearchParams().get("editar");
+  return <CvImportEditor initialResumeId={resumeId} userId={userId} />;
 }

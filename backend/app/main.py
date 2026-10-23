@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.generate_cv import router as generate_cv_router
+from app.api.cv_imports import resume_edits_router
 from app.api.cv_imports import router as cv_imports_router
 from app.api.jobs import router as jobs_router
 from app.api.profile import router as profile_router
@@ -28,6 +29,7 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestLoggingMiddleware)
     app.include_router(generate_cv_router)
     app.include_router(cv_imports_router)
+    app.include_router(resume_edits_router)
     app.include_router(jobs_router)
     app.include_router(profile_router)
     app.include_router(resumes_router)
