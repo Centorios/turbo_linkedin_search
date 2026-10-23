@@ -1,15 +1,29 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import Link from "next/link";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import type { StructuredCv } from "../types/cv";
 import type { ChangedSection, CvSource, EditResponse, ResumeVersion } from "../types/cv-import";
-import { deleteCvSource, downloadCvSource, importCv, proposeCvEdit, saveCvVersion } from "../lib/cv-import-client";
+import {
+  deleteCvSource,
+  downloadCvSource,
+  importCv,
+  proposeCvEdit,
+  proposeResumeEdit,
+  saveCvVersion,
+  saveResumeVersion,
+} from "../lib/cv-import-client";
+import { getResume } from "../lib/resume-history-client";
 import { ConfirmDialog } from "./confirm-dialog";
 import { CvPreview, type CvTemplate } from "./cv-preview";
 import { PdfDownload } from "./pdf-download";
 import { TemplateSelector } from "./template-selector";
 
-type BusyAction = "import" | "edit" | "save" | "download" | "delete" | null;
+type BusyAction = "load" | "import" | "edit" | "save" | "download" | "delete" | null;
+
+function formatVersionDate(value: string): string {
+  return new Date(value).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" });
+}
 
 const sectionLabels: Record<ChangedSection, string> = {
   personalInfo: "información personal",
@@ -21,9 +35,20 @@ const sectionLabels: Record<ChangedSection, string> = {
   certifications: "certificaciones",
 };
 
-export function CvImportEditor() {
+type CvImportEditorProps = {
+  /** Opens this history version for editing (from "Editar CV" in the history). */
+  initialResumeId?: string | null;
+  userId?: string | null;
+};
+
+export function CvImportEditor({ initialResumeId = null, userId = null }: CvImportEditorProps = {}) {
   const [file, setFile] = useState<File | null>(null);
   const [source, setSource] = useState<CvSource | null>(null);
+  // Set when editing a history version instead of an imported PDF.
+  const [historyVersion, setHistoryVersion] = useState<{ createdAt: string } | null>(null);
+  const [savedToHistory, setSavedToHistory] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const scrollToEditor = useRef(false);
   const [baseVersion, setBaseVersion] = useState<ResumeVersion | null>(null);
   const [proposal, setProposal] = useState<StructuredCv | null>(null);
   const [changedSections, setChangedSections] = useState<ChangedSection[]>([]);
@@ -36,6 +61,62 @@ export function CvImportEditor() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  function resetEdit() {
+    setProposal(null);
+    setChangedSections([]);
+    setChangeSummary("");
+    setQuestions([]);
+    setAnswers([]);
+    setInstruction("");
+    setSavedToHistory(false);
+  }
+
+  useEffect(() => {
+    if (!initialResumeId || !userId) return;
+    const controller = new AbortController();
+    setBusy("load");
+    setError(null);
+    setStatus("Abriendo la versión del CV...");
+    void getResume(userId, initialResumeId, controller.signal)
+      .then((resume) => {
+        if (controller.signal.aborted) return;
+        setSource(null);
+        setBaseVersion({ id: resume.id, sourceId: null, parentResumeId: null, createdAt: resume.createdAt, data: resume.data });
+        setHistoryVersion({ createdAt: resume.createdAt });
+        resetEdit();
+        setStatus(null);
+        scrollToEditor.current = true;
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setStatus(null);
+        setError("No encontramos esa versión del CV. Podés volver al Historial o importar un PDF.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setBusy(null);
+      });
+    return () => controller.abort();
+  }, [initialResumeId, userId]);
+
+  // Once the loaded version is on screen, bring the editor into view and move focus to it.
+  useEffect(() => {
+    if (!historyVersion || !scrollToEditor.current) return;
+    scrollToEditor.current = false;
+    const frame = requestAnimationFrame(() => {
+      headingRef.current?.closest("section")?.scrollIntoView?.({ block: "start" });
+      headingRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [historyVersion]);
+
+  function closeHistoryVersion() {
+    setHistoryVersion(null);
+    setBaseVersion(null);
+    resetEdit();
+    setError(null);
+    setStatus(null);
+  }
 
   async function handleImport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,11 +131,9 @@ export function CvImportEditor() {
     try {
       const result = await importCv(file);
       setSource(result.source);
+      setHistoryVersion(null);
       setBaseVersion(result.resume);
-      setProposal(null);
-      setQuestions([]);
-      setAnswers([]);
-      setInstruction("");
+      resetEdit();
       setStatus(`CV importado: ${result.source.originalFilename}`);
     } catch (importError) {
       setStatus(null);
@@ -66,7 +145,7 @@ export function CvImportEditor() {
 
   async function handlePropose(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!source || !baseVersion) return;
+    if (!baseVersion || (!source && !historyVersion)) return;
     if (!instruction.trim()) {
       setError("Describí el cambio que querés proponer.");
       return;
@@ -80,13 +159,10 @@ export function CvImportEditor() {
     setError(null);
     setStatus(questions.length ? "Revisando tus respuestas..." : "Preparando una propuesta...");
     try {
-      const result: EditResponse = await proposeCvEdit(
-        source.id,
-        baseVersion.id,
-        instruction.trim(),
-        answers,
-        proposal ?? baseVersion.data,
-      );
+      const currentCv = proposal ?? baseVersion.data;
+      const result: EditResponse = source
+        ? await proposeCvEdit(source.id, baseVersion.id, instruction.trim(), answers, currentCv)
+        : await proposeResumeEdit(baseVersion.id, instruction.trim(), answers, currentCv);
       if (result.status === "needs_input") {
         setQuestions(result.questions);
         setAnswers(result.questions.map(() => ""));
@@ -109,17 +185,22 @@ export function CvImportEditor() {
   }
 
   async function handleSave() {
-    if (!source || !baseVersion || !proposal) return;
+    if (!baseVersion || !proposal || (!source && !historyVersion)) return;
     setBusy("save");
     setError(null);
     setStatus("Guardando nueva versión...");
     try {
-      const saved = await saveCvVersion(source.id, baseVersion.id, proposal);
+      const saved = source
+        ? await saveCvVersion(source.id, baseVersion.id, proposal)
+        : await saveResumeVersion(baseVersion.id, proposal);
+      // The saved version becomes the base, so editing can continue from it.
       setBaseVersion(saved);
+      if (historyVersion) setHistoryVersion({ createdAt: saved.createdAt });
       setProposal(null);
       setChangedSections([]);
       setChangeSummary("");
-      setStatus("Nueva versión guardada.");
+      setSavedToHistory(true);
+      setStatus("Nueva versión guardada. Ya aparece en tu Historial.");
     } catch (saveError) {
       setStatus(null);
       setError(saveError instanceof Error ? saveError.message : "No se pudo guardar la versión.");
@@ -158,10 +239,7 @@ export function CvImportEditor() {
       await deleteCvSource(source.id);
       setSource(null);
       setBaseVersion(null);
-      setProposal(null);
-      setQuestions([]);
-      setAnswers([]);
-      setInstruction("");
+      resetEdit();
       setStatus("Fuente eliminada.");
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "No se pudo eliminar el CV importado.");
@@ -174,20 +252,22 @@ export function CvImportEditor() {
 
   return (
     <section
+      id="editar-cv"
       aria-labelledby="cv-import-heading"
       data-testid="cv-import-editor"
-      className="workspace-card mt-8 rounded-2xl border border-border bg-surface p-6 shadow-sm"
+      className="workspace-card mt-8 scroll-mt-20 rounded-2xl border border-border bg-surface p-6 shadow-sm"
     >
       <div className="max-w-3xl">
-        <h2 id="cv-import-heading" className="text-headline-lg tracking-tight text-text">
+        <h2 id="cv-import-heading" ref={headingRef} tabIndex={-1} className="text-headline-lg tracking-tight text-text focus:outline-none">
           Editá un CV existente
         </h2>
         <p className="mt-1 text-body-sm text-text-muted">
-          Importá un PDF con texto seleccionable y pedile a la IA cambios concretos en tus secciones o experiencias.
-          Revisarás cada propuesta antes de guardarla.
+          {historyVersion
+            ? "Pedile a la IA cambios concretos en tus secciones o experiencias. Revisarás cada propuesta y se guardará como una versión nueva, sin modificar la original."
+            : "Importá un PDF con texto seleccionable y pedile a la IA cambios concretos en tus secciones o experiencias. Revisarás cada propuesta antes de guardarla."}
         </p>
 
-        {!source && (
+        {!source && !historyVersion && busy !== "load" && (
           <form onSubmit={handleImport} className="mt-5 flex flex-col items-start gap-3">
             <label htmlFor="cv-import-file" className="text-body-sm font-semibold text-text">
               Seleccioná el CV en PDF
@@ -228,32 +308,51 @@ export function CvImportEditor() {
           </form>
         )}
 
-        {source && baseVersion && (
-          <>
-            <div className="mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-subtle p-3">
-              <p className="min-w-0 flex-1 text-body-sm font-semibold text-text">
-                CV importado: {source.originalFilename}
-              </p>
-              <button
-                type="button"
-                onClick={() => void handleDownload()}
-                disabled={busy !== null}
-                data-testid="cv-import-download"
-                className="focus-ring rounded-md border border-border bg-surface px-3 py-1.5 text-body-sm font-semibold text-text hover:bg-subtle disabled:opacity-70"
-              >
-                {busy === "download" ? "Descargando..." : "Descargar PDF original"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(true)}
-                disabled={busy !== null}
-                data-testid="cv-import-delete"
-                className="focus-ring rounded-md border border-danger px-3 py-1.5 text-body-sm font-semibold text-danger hover:bg-danger-surface disabled:opacity-70"
-              >
-                {busy === "delete" ? "Eliminando..." : "Eliminar CV importado"}
-              </button>
-            </div>
+        {historyVersion && baseVersion && (
+          <div data-testid="cv-history-edit-banner" className="mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-subtle p-3">
+            <p className="min-w-0 flex-1 text-body-sm font-semibold text-text">
+              Editando tu CV del {formatVersionDate(historyVersion.createdAt)}
+            </p>
+            <button
+              type="button"
+              onClick={closeHistoryVersion}
+              disabled={busy !== null}
+              data-testid="cv-history-edit-close"
+              className="focus-ring rounded-md border border-border bg-surface px-3 py-1.5 text-body-sm font-semibold text-text hover:bg-subtle disabled:opacity-70"
+            >
+              Importar otro PDF
+            </button>
+          </div>
+        )}
 
+        {source && baseVersion && (
+          <div className="mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-subtle p-3">
+            <p className="min-w-0 flex-1 text-body-sm font-semibold text-text">
+              CV importado: {source.originalFilename}
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleDownload()}
+              disabled={busy !== null}
+              data-testid="cv-import-download"
+              className="focus-ring rounded-md border border-border bg-surface px-3 py-1.5 text-body-sm font-semibold text-text hover:bg-subtle disabled:opacity-70"
+            >
+              {busy === "download" ? "Descargando..." : "Descargar PDF original"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={busy !== null}
+              data-testid="cv-import-delete"
+              className="focus-ring rounded-md border border-danger px-3 py-1.5 text-body-sm font-semibold text-danger hover:bg-danger-surface disabled:opacity-70"
+            >
+              {busy === "delete" ? "Eliminando..." : "Eliminar CV importado"}
+            </button>
+          </div>
+        )}
+
+        {(source || historyVersion) && baseVersion && (
+          <>
             <form onSubmit={handlePropose} className="mt-5 flex flex-col gap-2">
               <label htmlFor="cv-edit-instruction" className="text-body-sm font-semibold text-text">
                 {proposal ? "¿Qué querés ajustar de esta propuesta?" : "¿Qué querés cambiar?"}
@@ -314,6 +413,14 @@ export function CvImportEditor() {
         {status && (
           <p role="status" data-testid="cv-import-status" aria-live="polite" className="mt-4 text-body-sm text-text-muted">
             {status}
+            {savedToHistory && (
+              <>
+                {" "}
+                <Link href="/history" data-testid="cv-import-history-link" className="focus-ring rounded font-semibold text-primary underline">
+                  Ver en Historial
+                </Link>
+              </>
+            )}
           </p>
         )}
       </div>

@@ -25,7 +25,8 @@ class CvSource(StrictModel):
 
 class ResumeVersion(StrictModel):
     id: UUID
-    sourceId: UUID
+    # None for versions that come from a generated CV instead of an imported PDF.
+    sourceId: UUID | None
     parentResumeId: UUID | None
     createdAt: datetime
     data: StructuredCv
@@ -77,6 +78,21 @@ EditResponse = Annotated[EditNeedsInput | EditReady, Field(discriminator="status
 
 class SaveVersionRequest(StrictModel):
     baseResumeId: UUID
+    data: StructuredCv
+
+
+class ResumeEditRequest(StrictModel):
+    """Edit request for a history version: the base resume comes from the URL."""
+
+    instruction: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
+    answers: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]] = Field(
+        default_factory=list,
+        max_length=3,
+    )
+    currentCv: StructuredCv | None = None
+
+
+class ResumeVersionRequest(StrictModel):
     data: StructuredCv
 
 

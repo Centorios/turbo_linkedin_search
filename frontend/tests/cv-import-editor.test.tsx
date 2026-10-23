@@ -10,9 +10,13 @@ const mocks = vi.hoisted(() => ({
   saveCvVersion: vi.fn(),
   downloadCvSource: vi.fn(),
   deleteCvSource: vi.fn(),
+  proposeResumeEdit: vi.fn(),
+  saveResumeVersion: vi.fn(),
 }));
+const history = vi.hoisted(() => ({ getResume: vi.fn() }));
 
 vi.mock("../app/lib/cv-import-client", () => mocks);
+vi.mock("../app/lib/resume-history-client", () => history);
 vi.mock("../app/components/cv-preview", () => ({
   CvPreview: ({ cv }: { cv: { summary: string } }) => <div data-testid="cv-preview">{cv.summary}</div>,
 }));
@@ -80,6 +84,9 @@ beforeEach(() => {
   mocks.saveCvVersion.mockResolvedValue(saved);
   mocks.downloadCvSource.mockResolvedValue(new Blob(["%PDF-source"]));
   mocks.deleteCvSource.mockResolvedValue(undefined);
+  history.getResume.mockResolvedValue({ id: "resume-9", createdAt: "2026-10-17T03:33:00Z", data: cv });
+  mocks.proposeResumeEdit.mockResolvedValue(proposal);
+  mocks.saveResumeVersion.mockResolvedValue({ ...saved, id: "resume-10", sourceId: null, parentResumeId: "resume-9" });
 });
 
 afterEach(() => {
@@ -158,7 +165,7 @@ describe("Importación y edición de CV PDF", () => {
       "resume-1",
       proposal.proposedCv,
     ));
-    expect((await screen.findByTestId("cv-import-status")).textContent).toBe("Nueva versión guardada.");
+    expect((await screen.findByTestId("cv-import-status")).textContent).toBe("Nueva versión guardada. Ya aparece en tu Historial. Ver en Historial");
   });
 
   it("mantiene el formulario disponible cuando la importación falla", async () => {
@@ -189,5 +196,69 @@ describe("Importación y edición de CV PDF", () => {
     fireEvent.click(screen.getByTestId("confirm-dialog-confirm"));
     await waitFor(() => expect(mocks.deleteCvSource).toHaveBeenCalledWith("source-1"));
     expect((await screen.findByTestId("cv-import-status")).textContent).toBe("Fuente eliminada.");
+  });
+});
+
+describe("Editar una versión del historial", () => {
+  function openVersion() {
+    render(<CvImportEditor initialResumeId="resume-9" userId="user-a" />);
+    return screen.findByTestId("cv-history-edit-banner");
+  }
+
+  it("carga la versión, la muestra y oculta lo que es propio de un PDF importado", async () => {
+    const banner = await openVersion();
+
+    expect(history.getResume).toHaveBeenCalledWith("user-a", "resume-9", expect.any(AbortSignal));
+    expect(banner.textContent).toContain("Editando tu CV del");
+    expect(screen.getByTestId("cv-preview").textContent).toBe("Desarrolladora de software");
+    expect(screen.queryByTestId("cv-import-file")).toBeNull();
+    expect(screen.queryByTestId("cv-import-download")).toBeNull();
+    expect(screen.queryByTestId("cv-import-delete")).toBeNull();
+    expect(document.getElementById("editar-cv")).toBe(screen.getByTestId("cv-import-editor"));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Editá un CV existente" })));
+  });
+
+  it("pide los cambios y guarda una versión nueva por los endpoints del historial", async () => {
+    await openVersion();
+
+    fireEvent.change(screen.getByTestId("cv-edit-instruction"), { target: { value: "Mejorá el resumen" } });
+    fireEvent.click(screen.getByTestId("cv-edit-submit"));
+    await screen.findByTestId("cv-import-proposal");
+    expect(mocks.proposeResumeEdit).toHaveBeenCalledWith("resume-9", "Mejorá el resumen", [], cv);
+    expect(mocks.proposeCvEdit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("cv-import-save"));
+    await waitFor(() => expect(mocks.saveResumeVersion).toHaveBeenCalledWith("resume-9", proposal.status === "ready" ? proposal.proposedCv : null));
+    expect(mocks.saveCvVersion).not.toHaveBeenCalled();
+    expect((await screen.findByTestId("cv-import-status")).textContent).toContain("Ya aparece en tu Historial");
+    expect(screen.getByTestId("cv-import-history-link").getAttribute("href")).toBe("/history");
+
+    // The saved version becomes the base for the next change.
+    fireEvent.change(screen.getByTestId("cv-edit-instruction"), { target: { value: "Agregá Python" } });
+    fireEvent.click(screen.getByTestId("cv-edit-submit"));
+    await waitFor(() => expect(mocks.proposeResumeEdit).toHaveBeenLastCalledWith("resume-10", "Agregá Python", [], expect.anything()));
+  });
+
+  it("si la versión no existe avisa y deja importar un PDF", async () => {
+    history.getResume.mockRejectedValueOnce(new Error("El CV no está disponible"));
+    render(<CvImportEditor initialResumeId="resume-x" userId="user-a" />);
+
+    expect((await screen.findByTestId("cv-import-error")).textContent).toContain("No encontramos esa versión del CV");
+    expect(screen.getByTestId("cv-import-file")).toBeTruthy();
+    expect(screen.queryByTestId("cv-history-edit-banner")).toBeNull();
+  });
+
+  it("\"Importar otro PDF\" vuelve al formulario de importación", async () => {
+    await openVersion();
+    fireEvent.click(screen.getByTestId("cv-history-edit-close"));
+
+    expect(screen.queryByTestId("cv-history-edit-banner")).toBeNull();
+    expect(screen.getByTestId("cv-import-file")).toBeTruthy();
+    expect(screen.queryByTestId("cv-preview")).toBeNull();
+  });
+
+  it("espera la sesión antes de pedir la versión", () => {
+    render(<CvImportEditor initialResumeId="resume-9" userId={null} />);
+    expect(history.getResume).not.toHaveBeenCalled();
   });
 });

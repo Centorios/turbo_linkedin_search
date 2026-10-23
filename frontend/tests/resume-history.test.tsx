@@ -51,6 +51,14 @@ describe("Historial de CVs", () => {
     expect(screen.getByTestId("pdf-download")).toBeTruthy();
   });
 
+  it("\"Editar CV\" lleva al editor con esa versión", async () => {
+    render(<HistoryPage />);
+    fireEvent.click(await screen.findByTestId("history-item-resume-a"));
+    const edit = await screen.findByTestId("history-edit");
+    expect(edit.textContent).toBe("Editar CV");
+    expect(edit.getAttribute("href")).toBe("/generate?editar=resume-a#editar-cv");
+  });
+
   it("cancelar la confirmación conserva el CV y no envía la solicitud", async () => {
     render(<HistoryPage />);
     await screen.findByTestId("history-item-resume-a");

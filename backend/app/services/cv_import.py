@@ -16,6 +16,7 @@ from app.models.cv_import import (
     EditNeedsInput,
     EditReady,
     EditRequest,
+    ResumeEditRequest,
     ResumeVersion,
     SaveVersionRequest,
 )
@@ -149,13 +150,23 @@ class CvImportService:
             raise CvSourceNotFoundError("CV source not found")
 
         base_cv = self._validate_cv(base.get("data"))
-        edit_base = request.currentCv or base_cv
+        return await self._propose_changes(request.currentCv or base_cv, request.instruction, request.answers)
+
+    async def propose_resume_edit(
+        self, user_id: str, resume_id: str, request: ResumeEditRequest
+    ) -> EditNeedsInput | EditReady:
+        """Same edit flow, starting from any version in the person's history."""
+        base = self.repository.get_resume(user_id, str(resume_id))
+        if base is None:
+            raise CvSourceNotFoundError("Resume not found")
+        base_cv = self._validate_cv(base.get("data"))
+        return await self._propose_changes(request.currentCv or base_cv, request.instruction, request.answers)
+
+    async def _propose_changes(
+        self, edit_base: StructuredCv, instruction: str, answers: list[str]
+    ) -> EditNeedsInput | EditReady:
         try:
-            result = await self.provider.edit_cv(
-                edit_base.model_dump(),
-                request.instruction,
-                request.answers,
-            )
+            result = await self.provider.edit_cv(edit_base.model_dump(), instruction, answers)
             if result.get("status") == "needs_input":
                 return EditNeedsInput.model_validate(result)
             if result.get("status") != "ready":
@@ -202,6 +213,24 @@ class CvImportService:
         )
         return self._resume_version(saved, source_id)
 
+    def save_resume_version(
+        self, user_id: str, resume_id: str, request_id: str, data: StructuredCv
+    ) -> ResumeVersion:
+        """Saves an edited history version as a new version; the base is never overwritten.
+        A version of an imported PDF keeps its source."""
+        base = self.repository.get_resume(user_id, str(resume_id))
+        if base is None:
+            raise CvSourceNotFoundError("Resume not found")
+        source_id = base.get("source_id")
+        saved = self.repository.create_version(
+            user_id=user_id,
+            source_id=str(source_id) if source_id else None,
+            request_id=request_id,
+            parent_resume_id=str(resume_id),
+            data=data.model_dump(),
+        )
+        return self._resume_version(saved, saved.get("source_id"))
+
     def download_source(self, user_id: str, source_id: str) -> tuple[bytes, str]:
         result = self.repository.download_source(user_id, str(source_id))
         if result is None:
@@ -229,7 +258,7 @@ class CvImportService:
         )
 
     @staticmethod
-    def _resume_version(row: dict[str, Any], source_id: str) -> ResumeVersion:
+    def _resume_version(row: dict[str, Any], source_id: str | None) -> ResumeVersion:
         return ResumeVersion(
             id=row["id"],
             sourceId=source_id,

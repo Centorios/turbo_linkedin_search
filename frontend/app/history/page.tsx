@@ -8,7 +8,7 @@ import { ConfirmDialog } from "../components/confirm-dialog";
 import { CvPreview, type CvTemplate } from "../components/cv-preview";
 import { TemplateSelector } from "../components/template-selector";
 import { PdfDownload } from "../components/pdf-download";
-import { DocumentIcon, SpinnerIcon } from "../components/icons";
+import { DocumentIcon, SparkleIcon, SpinnerIcon } from "../components/icons";
 import { deleteResume, getResume, listResumes } from "../lib/resume-history-client";
 import { getProfilePhotoUrl } from "../lib/profile-photo-client";
 import type { ResumeDetail, ResumeHistoryPage, ResumeSummary } from "../types/resume-history";
@@ -156,9 +156,9 @@ function AccountHistory({ userId }: { userId: string }) {
           </section>
           <section aria-label="CV seleccionado" className="flex flex-col gap-4 lg:col-span-8">
             {detailLoading ? <p role="status" data-testid="history-detail-loading" className="flex items-center gap-2 rounded-xl bg-subtle p-8"><SpinnerIcon className="h-4 w-4" />Abriendo tu CV...</p> : detailError ? <div className="rounded-xl border border-border bg-surface p-5"><p role="alert" data-testid="history-detail-error" className="text-body-sm text-danger">{detailError}</p><button type="button" data-testid="history-detail-retry" onClick={() => selectedId && void openResume(selectedId)} className="focus-ring mt-3 rounded-lg border border-border px-3 py-2 text-body-sm">Reintentar</button></div> : detail ? <>
-              <p className="text-body-sm text-text-muted">Versión del <time dateTime={detail.createdAt}>{formatDate(detail.createdAt)}</time>. Conserva los datos originales de ese CV.</p>
+              <p className="text-body-sm text-text-muted">Versión del <time dateTime={detail.createdAt}>{formatDate(detail.createdAt)}</time>{formatDate(detail.createdAt).endsWith(".") ? "" : "."} Conserva los datos originales de ese CV.</p>
               {photoMissing && <p role="status" className="rounded-lg bg-warning-surface p-3 text-body-sm text-warning">La foto de esta versión ya no está disponible. Podés descargar el CV con su contenido de texto.</p>}
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 shadow-sm"><TemplateSelector value={template} onChange={setTemplate} /><PdfDownload cv={detail.data} template={template} /></div>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 shadow-sm"><TemplateSelector value={template} onChange={setTemplate} /><div className="flex flex-wrap items-start gap-2"><Link href={`/generate?editar=${encodeURIComponent(detail.id)}#editar-cv`} data-testid="history-edit" className="focus-ring flex items-center gap-2 rounded-lg border border-primary bg-surface px-4 py-2 text-body-sm font-semibold text-primary transition-colors hover:bg-subtle"><SparkleIcon className="h-4 w-4" />Editar CV</Link><PdfDownload cv={detail.data} template={template} /></div></div>
               <div className="preview-stage rounded-xl bg-subtle p-4 sm:p-6"><CvPreview cv={detail.data} template={template} /></div>
             </> : <div className="flex min-h-[350px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-surface p-8 text-center"><DocumentIcon className="h-10 w-10 text-primary" /><p className="text-body-sm font-semibold">Elegí una versión para revisarla</p><p className="max-w-sm text-caption-xs text-text-muted">Podrás cambiar su plantilla y volver a descargarla sin generar un CV nuevo.</p></div>}
           </section>
