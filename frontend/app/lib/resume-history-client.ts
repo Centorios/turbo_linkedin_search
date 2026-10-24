@@ -18,7 +18,7 @@ async function requestHistory(userId: string, path: string, signal: AbortSignal,
   const supabase = createSupabaseBrowserClient();
   const { data: { session } } = await supabase.auth.getSession();
   signal.throwIfAborted();
-  if (!session?.access_token) throw new Error("La sesión ha expirado. Volvé a iniciar sesión.");
+  if (!session?.access_token) throw new Error("Tu sesión expiró. Volvé a iniciar sesión.");
   if (session.user.id !== userId) throw new DOMException("La cuenta cambió", "AbortError");
   const backendUrl = getBackendUrl();
   let response: Response;

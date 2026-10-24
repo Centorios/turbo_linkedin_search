@@ -31,7 +31,7 @@ async function requestProfile(method: "GET" | "PUT", profile?: BasicProfile): Pr
   } = await supabase.auth.getSession();
 
   if (!session?.access_token) {
-    throw new Error("La sesión ha expirado");
+    throw new Error("Tu sesión expiró. Volvé a iniciar sesión.");
   }
 
   const backendUrl = getBackendUrl();

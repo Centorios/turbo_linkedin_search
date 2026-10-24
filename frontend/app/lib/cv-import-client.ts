@@ -106,7 +106,7 @@ async function request(path: string, init: RequestInit): Promise<Response> {
   } = await supabase.auth.getSession();
 
   if (!session?.access_token) {
-    throw new Error("La sesión ha expirado. Volvé a iniciar sesión.");
+    throw new Error("Tu sesión expiró. Volvé a iniciar sesión.");
   }
 
   let response: Response;
@@ -126,7 +126,7 @@ async function request(path: string, init: RequestInit): Promise<Response> {
 
   if (response.status === 401) {
     await supabase.auth.signOut();
-    throw new Error("La sesión ha expirado. Volvé a iniciar sesión.");
+    throw new Error("Tu sesión expiró. Volvé a iniciar sesión.");
   }
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as ApiError | null;

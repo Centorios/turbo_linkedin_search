@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { CameraCapture, isCameraSupported } from "./camera-capture";
+import { FilePickerButton } from "./file-picker-button";
 import { deleteProfilePhoto, getProfilePhotoUrl, uploadProfilePhoto, validateProfilePhoto } from "../lib/profile-photo-client";
 import type { BasicProfile } from "../types/profile";
 
@@ -78,7 +80,11 @@ export function BasicProfileModal({
 }: BasicProfileModalProps) {
   const [values, setValues] = useState<BasicProfile>(() => profileFormValues(profile, email));
   const [errors, setErrors] = useState<ProfileErrors>({});
-  const [selectedPhoto, setSelectedPhoto] = useState<{ file: File; url: string } | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<{ file: File; url: string; fromCamera: boolean } | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  // Read after mount: the server (and the first render) cannot know about the camera.
+  const [cameraSupported, setCameraSupported] = useState(false);
+  useEffect(() => setCameraSupported(isCameraSupported()), []);
   const [storedPhotoUrl, setStoredPhotoUrl] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
 
@@ -110,7 +116,7 @@ export function BasicProfileModal({
     setErrors((current) => ({ ...current, [field]: undefined }));
   }
 
-  function selectPhoto(file: File | undefined) {
+  function selectPhoto(file: File | undefined, fromCamera = false) {
     if (!file) return;
     const validationError = validateProfilePhoto(file);
     if (validationError) {
@@ -118,7 +124,7 @@ export function BasicProfileModal({
       return;
     }
     setPhotoError(null);
-    setSelectedPhoto({ file, url: URL.createObjectURL(file) });
+    setSelectedPhoto({ file, url: URL.createObjectURL(file), fromCamera });
   }
 
   function removePhoto() {
@@ -133,6 +139,7 @@ export function BasicProfileModal({
     const nextErrors = validateProfile(values);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
+    setCameraOpen(false);
     setPhotoError(null);
     let uploadedPath: string | null = null;
     const nextProfile = { ...values, fullName: values.fullName.trim() };
@@ -214,15 +221,33 @@ export function BasicProfileModal({
             <label htmlFor="profile-photo" className="mb-1.5 block text-body-sm font-semibold text-text">
               Foto de perfil <span className="font-normal text-text-muted">(opcional)</span>
             </label>
-            <input
+            <FilePickerButton
               id="profile-photo"
-              type="file"
               accept="image/jpeg,image/png,image/webp"
-              aria-describedby="profile-photo-hint"
-              onChange={(event) => selectPhoto(event.currentTarget.files?.[0])}
-              data-testid="profile-photo-input"
-              className="focus-ring w-full rounded-lg border border-border bg-surface px-3 py-2 text-body-sm text-text"
-            />
+              disabled={isSaving}
+              describedBy="profile-photo-hint"
+              fileName={
+                selectedPhoto ? (selectedPhoto.fromCamera ? "Foto de la cámara" : selectedPhoto.file.name) : values.photoPath ? "Foto guardada" : null
+              }
+              onSelect={(file) => selectPhoto(file)}
+              testIds={{ input: "profile-photo-input", browse: "profile-photo-browse", filename: "profile-photo-filename" }}
+              className="flex w-full flex-wrap items-center gap-3"
+            >
+              {cameraSupported && (
+                <button
+                  type="button"
+                  onClick={() => setCameraOpen(true)}
+                  disabled={isSaving || cameraOpen}
+                  data-testid="profile-photo-camera-open"
+                  className="focus-ring shrink-0 rounded-lg border border-primary bg-surface px-4 py-2 text-body-sm font-semibold text-primary transition-colors hover:bg-subtle disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Usar cámara
+                </button>
+              )}
+            </FilePickerButton>
+            {cameraOpen && (
+              <CameraCapture onCapture={(file) => selectPhoto(file, true)} onClose={() => setCameraOpen(false)} />
+            )}
             <p id="profile-photo-hint" className="mt-1 text-caption-xs text-text-muted">
               JPEG, PNG o WebP; máximo 5 MB.
             </p>

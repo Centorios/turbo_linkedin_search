@@ -1,5 +1,17 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+
+// Chromium's fake camera produces a test pattern, so no real device is needed.
+// launchOptions cannot be set inside a describe, so this applies to the whole file;
+// it only matters to the tests that open the camera. The configured executable is kept.
+const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+test.use({
+  permissions: ["camera"],
+  launchOptions: {
+    args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+    ...(chromiumExecutablePath ? { executablePath: chromiumExecutablePath } : {}),
+  },
+});
 import { pdfHasImage, readPreviewPdf } from "./pdf-preview";
 
 const userId = "00000000-0000-0000-0000-000000000001";
@@ -194,5 +206,59 @@ test.describe("Foto de perfil opcional", () => {
     const pdfBytes = readFileSync(pdfPath!);
     expect(pdfBytes.subarray(0, 5).toString()).toBe("%PDF-");
     expect(pdfBytes.toString("latin1")).toContain("/Subtype /Image");
+  });
+});
+
+test.describe("Foto de perfil con la cámara", () => {
+  test("toma una foto con la cámara y la guarda como foto de perfil", async ({ page }) => {
+    const mocks = await installMocks(page);
+    await signIn(page);
+
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toBeVisible();
+    await expect(page.getByTestId("profile-photo-browse")).toHaveText("Buscar");
+    await page.getByLabel("Nombre completo").fill("Ana García");
+
+    await page.getByTestId("profile-photo-camera-open").click();
+    await expect(page.getByTestId("camera-take-photo")).toBeEnabled();
+    await page.getByTestId("camera-take-photo").click();
+
+    await expect(page.getByTestId("profile-photo-camera")).toHaveCount(0);
+    await expect(page.getByTestId("profile-photo-preview")).toBeVisible();
+    await expect(page.getByTestId("profile-photo-filename")).toHaveText("Foto de la cámara");
+    await page.getByRole("button", { name: "Guardar perfil" }).click();
+
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toHaveCount(0);
+    expect(mocks.uploads).toHaveLength(1);
+    expect(mocks.profile?.photoPath).toMatch(new RegExp(`^${userId}/[0-9a-f-]+\\.jpg$`));
+  });
+
+  test("cancelar la cámara no agrega foto y Escape no cierra el diálogo", async ({ page }) => {
+    const mocks = await installMocks(page);
+    await signIn(page);
+
+    await page.getByTestId("profile-photo-camera-open").click();
+    await expect(page.getByTestId("camera-take-photo")).toBeEnabled();
+    await page.keyboard.press("Escape");
+
+    await expect(page.getByTestId("profile-photo-camera")).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toBeVisible();
+    await expect(page.getByTestId("profile-photo-preview")).toHaveCount(0);
+    expect(mocks.uploads).toHaveLength(0);
+  });
+});
+
+test.describe("Foto de perfil sin permiso de cámara", () => {
+  test("explica que falta el permiso y deja elegir un archivo", async ({ page }) => {
+    await page.addInitScript(() => {
+      navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException("denied", "NotAllowedError"));
+    });
+    await installMocks(page);
+    await signIn(page);
+
+    await page.getByTestId("profile-photo-camera-open").click();
+
+    await expect(page.getByTestId("camera-error")).toContainText("No diste permiso para usar la cámara");
+    await page.getByLabel("Foto de perfil (opcional)").setInputFiles({ name: "foto.png", mimeType: "image/png", buffer: tinyPng });
+    await expect(page.getByTestId("profile-photo-preview")).toBeVisible();
   });
 });
