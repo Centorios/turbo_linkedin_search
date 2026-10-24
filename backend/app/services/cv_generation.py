@@ -4,6 +4,7 @@ from pydantic import ValidationError
 
 from app.models.cv import StructuredCv
 from app.services.azure_openai import AzureOpenAIError, AzureOpenAIProvider
+from app.services.language_detection import detect_language
 from app.services.profile_repository import ProfileRepository
 from app.services.resume_repository import ResumeRepository
 
@@ -34,7 +35,9 @@ class CvGenerationService:
         except AzureOpenAIError:
             raise
 
-        document = self._with_profile(self._validate(generated), profile)
+        document = self._with_detected_language(
+            self._with_profile(self._validate(generated), profile), text
+        )
         try:
             saved = self.repository.create(user_id, request_id, document.model_dump())
         except Exception:
@@ -43,6 +46,22 @@ class CvGenerationService:
                 return self._with_profile(self._validate(existing["data"]), profile)
             raise
         return self._validate(saved["data"])
+
+    @classmethod
+    def _with_detected_language(cls, document: StructuredCv, text: str) -> StructuredCv:
+        """When the text names no spoken language, lists the one it is written in.
+
+        The level is left empty: writing in a language says nothing about proficiency.
+        A language the AI already found is never replaced, and an unclear text adds nothing.
+        """
+        if document.languages:
+            return document
+        detected = detect_language(text)
+        if detected is None:
+            return document
+        data = document.model_dump()
+        data["languages"] = [{"name": detected, "proficiency": ""}]
+        return cls._validate(data)
 
     @classmethod
     def _with_profile(

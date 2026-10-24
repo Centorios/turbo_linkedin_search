@@ -241,7 +241,7 @@ export function MatchResults({ match, sources = [] }: { match: MatchController; 
             <li
               key={`${recommendation.rank}-${recommendation.offerId}`}
               data-testid={`match-recommendation-${recommendation.rank}`}
-              className={`rounded-lg border bg-surface p-4 shadow-sm ${recommendation.rank === 1 ? "border-amber-400/70" : "border-border"}`}
+              className={`rounded-lg border bg-surface p-4 shadow-sm ${recommendation.rank === 1 ? "border-warning/60" : "border-border"}`}
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -250,7 +250,7 @@ export function MatchResults({ match, sources = [] }: { match: MatchController; 
                     {recommendation.rank === 1 && (
                       <span
                         data-testid="match-highest-affinity"
-                        className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-caption-xs font-semibold text-amber-900"
+                        className="inline-flex items-center gap-1 rounded-full bg-warning-surface px-2.5 py-1 text-caption-xs font-semibold text-warning"
                       >
                         <svg
                           viewBox="0 0 20 20"

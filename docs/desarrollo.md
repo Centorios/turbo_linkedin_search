@@ -186,6 +186,27 @@ Reglas para los estilos:
 - Las entradas llevan `wrap={false}` para no cortarse entre páginas.
 - Los estilos creativos no muestran fechas ni identificador de las certificaciones.
 
+## Modo claro y oscuro
+
+El botón **sol/luna** (`frontend/app/components/theme-toggle.tsx`) está en el header y en la pantalla de acceso.
+
+- **Cómo funciona:** el tema vive en `<html data-theme="light|dark">`. Los colores son tokens (`--color-surface`, `--color-text`, `--color-primary`…) definidos en `frontend/app/globals.css`; el modo oscuro **redefine los mismos tokens** en `:root[data-theme="dark"]`. Por eso los componentes no saben nada del tema: usan `bg-surface`, `text-text-muted`, `border-border`, etc. y cambian solos.
+- **Reglas para componentes nuevos:** usar siempre clases de token y **no** colores fijos (`bg-white`, `text-indigo-100`, hex). Para un color nuevo, agregar el token en las dos paletas. Los efectos que no son un color plano (sombras, degradados) van como variables (`--card-shadow`, `--canvas-glow-1`…).
+- **Preferencia:** una elección guardada (`localStorage`, clave `cv8-theme`) gana sobre el sistema; sin elección se sigue `prefers-color-scheme`, también mientras la página está abierta. Si el navegador bloquea el almacenamiento, la elección dura solo esa visita.
+- **Sin destello:** un script en `<head>` (`THEME_INIT_SCRIPT` en `frontend/app/lib/theme.ts`) aplica el tema **antes de pintar**. El cambio se anima un instante (`html.theme-transition`), salvo con "reducir movimiento".
+- **Qué no cambia:** el PDF del CV y su vista previa siguen blancos: es un documento para enviar o imprimir. El panel de marca ya era oscuro.
+- **Contraste:** `frontend/tests/theme-contrast.test.ts` lee los tokens de `globals.css` y exige 4.5:1 (WCAG AA) en los pares de texto del tema oscuro. El tema claro conserva sus colores; algunos pares ya estaban por debajo de 4.5:1 y quedan listados en el test para que no empeoren (`text-faint` sobre `subtle` y `canvas`, y `success`, `warning` y `danger` sobre sus fondos).
+- **Header en pantallas angostas:** a partir de 360 px entra en una fila; por debajo, el botón y "Cerrar sesión" pasan a una segunda fila.
+
+## Idioma del CV
+
+Al generar un CV, si el texto **no menciona ningún idioma**, la sección "Idiomas" lleva el idioma en el que está escrito, por ejemplo "Español", en lugar de "Sin idiomas registrados".
+
+- `backend/app/services/language_detection.py` cuenta palabras funcionales frecuentes (artículos, preposiciones, conjunciones) y reconoce **Español, Inglés y Portugués**, sin dependencias ni llamadas a la IA. Si el texto es muy corto (menos de 8 palabras), no hay evidencia suficiente o el resultado es parejo, **no agrega nada**: es mejor la sección vacía que un idioma equivocado.
+- Se agrega sin nivel (`proficiency` vacío): escribir en un idioma no dice qué nivel se tiene.
+- Si la IA ya encontró idiomas en el texto, no se toca nada. La importación de PDF y las ediciones no cambian.
+- Para sumar un idioma, agregar su lista de palabras en `_FUNCTION_WORDS` y un texto de ejemplo en `tests/integration/test_language_detection.py`.
+
 ## Textos y tono
 
 Los textos de la interfaz están en **español rioplatense, con voseo y tono profesional**:
