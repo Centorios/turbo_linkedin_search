@@ -9,7 +9,7 @@ export async function generateCv(text: string, requestId = crypto.randomUUID()):
   } = await supabase.auth.getSession();
 
   if (!session?.access_token) {
-    throw new Error("La sesión ha expirado");
+    throw new Error("Tu sesión expiró. Volvé a iniciar sesión.");
   }
 
   const backendUrl = getBackendUrl();

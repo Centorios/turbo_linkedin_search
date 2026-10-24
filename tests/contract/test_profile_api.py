@@ -99,6 +99,10 @@ def test_profile_endpoints_reject_missing_invalid_and_expired_bearer(
     assert missing.status_code == 401
     assert invalid.status_code == 401
     assert expired.status_code == 401
+    # Messages are in Rioplatense Spanish, never the English defaults.
+    assert missing.json()["detail"] == "Tenés que iniciar sesión."
+    assert invalid.json()["detail"] == "Tu sesión no es válida. Volvé a iniciar sesión."
+    assert expired.json()["detail"] == "Tu sesión no es válida. Volvé a iniciar sesión."
     assert profile_repository.rows == {}
 
 

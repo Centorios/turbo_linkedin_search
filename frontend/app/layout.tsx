@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={inter.variable}>
+    <html lang="es-AR" className={inter.variable}>
       <body className="bg-canvas font-sans text-text antialiased">
         <SessionProvider>{children}</SessionProvider>
       </body>

@@ -24,7 +24,7 @@ export async function uploadProfilePhoto(file: File): Promise<string> {
 
   const supabase = createSupabaseBrowserClient();
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user.id) throw new Error("La sesión ha expirado. Volvé a iniciar sesión.");
+  if (!session?.user.id) throw new Error("Tu sesión expiró. Volvé a iniciar sesión.");
 
   const path = `${session.user.id}/${crypto.randomUUID()}.${extensionByMimeType[file.type]}`;
   const { error } = await supabase.storage.from(bucketName).upload(path, file, {

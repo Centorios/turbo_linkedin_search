@@ -48,7 +48,7 @@ export async function requestJobs<T>(
   const supabase = createSupabaseBrowserClient();
   const { data: { session } } = await supabase.auth.getSession();
   options.signal.throwIfAborted();
-  if (!session?.access_token) throw new Error("La sesión ha expirado. Volvé a iniciar sesión.");
+  if (!session?.access_token) throw new Error("Tu sesión expiró. Volvé a iniciar sesión.");
   if (session.user.id !== userId) throw new DOMException("La cuenta cambió", "AbortError");
 
   let response: Response;

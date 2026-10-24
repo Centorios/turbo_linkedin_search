@@ -15,6 +15,7 @@ import {
 } from "../lib/cv-import-client";
 import { getResume } from "../lib/resume-history-client";
 import { ConfirmDialog } from "./confirm-dialog";
+import { FilePickerButton } from "./file-picker-button";
 import { CvPreview, type CvTemplate } from "./cv-preview";
 import { PdfDownload } from "./pdf-download";
 import { TemplateSelector } from "./template-selector";
@@ -272,28 +273,14 @@ export function CvImportEditor({ initialResumeId = null, userId = null }: CvImpo
             <label htmlFor="cv-import-file" className="text-body-sm font-semibold text-text">
               Seleccioná el CV en PDF
             </label>
-            {/* The native input stays accessible but hidden; "Buscar" is its styled label. */}
-            <div className="flex w-full max-w-xl items-center gap-3">
-              <input
-                id="cv-import-file"
-                type="file"
-                accept="application/pdf,.pdf"
-                data-testid="cv-import-file"
-                disabled={busy !== null}
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                className="peer sr-only"
-              />
-              <label
-                htmlFor="cv-import-file"
-                data-testid="cv-import-browse"
-                className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-body-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Buscar
-              </label>
-              <span data-testid="cv-import-filename" className="min-w-0 truncate text-body-sm text-text-muted">
-                {file ? file.name : "Ningún archivo seleccionado"}
-              </span>
-            </div>
+            <FilePickerButton
+              id="cv-import-file"
+              accept="application/pdf,.pdf"
+              disabled={busy !== null}
+              fileName={file?.name}
+              onSelect={(selected) => setFile(selected ?? null)}
+              testIds={{ input: "cv-import-file", browse: "cv-import-browse", filename: "cv-import-filename" }}
+            />
             <p className="text-caption-xs text-text-muted">
               Máximo 10 MiB y 20 páginas. No se admiten PDF escaneados sin texto extraíble.
             </p>

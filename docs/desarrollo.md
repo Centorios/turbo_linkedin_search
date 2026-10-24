@@ -196,7 +196,19 @@ Los botones en infinitivo ("Iniciar sesión", "Generar CV") y "tu/tus" no cambia
 - Los prompts de `backend/app/services/azure_openai.py` que generan preguntas y recomendaciones para la persona (asistente de trayectoria, edición de un CV importado y Match) piden español rioplatense con voseo. No cambia el esquema JSON.
 - El **contenido del CV** (resumen, logros, títulos) sigue siendo impersonal y fiel a la fuente.
 - `No conozco ese dato.` es una frase fija: el backend la reconoce como "no sé", así que no se traduce ni se modifica.
+- **Nada en inglés a la vista.** Los errores de Supabase Auth llegan en inglés ("Invalid login credentials"): `getAuthErrorMessage` (`frontend/app/auth/actions.ts`) los traduce por `error.code` y, si el código no se conoce, muestra un mensaje genérico en español, nunca el texto original. Las páginas 404 y de error son propias (`app/not-found.tsx` y `app/error.tsx`) y `<html lang>` es `es-AR`. Para agregar un error nuevo, sumar su código al mapa.
+- **No usar `<input type="file">` a la vista:** su "Browse… No file selected." depende del idioma del navegador y no se puede traducir. Usar `FilePickerButton` (`frontend/app/components/file-picker-button.tsx`), que deja el input oculto pero accesible y muestra el botón **"Buscar"**.
 - Al escribir textos nuevos, evitar el tuteo (`puedes`, `introduce`, `inténtalo`, `selecciona`) y el vocabulario peninsular.
+
+## Foto de perfil con la cámara
+
+En **Editar perfil**, la foto se elige con **Buscar** (un archivo JPEG, PNG o WebP de hasta 5 MB) o con
+**Usar cámara**, que muestra la cámara dentro del mismo campo y toma la foto con **Tomar foto**.
+
+- La captura se guarda como un recorte cuadrado de 640×640 en JPEG (`foto-camara.jpg`) y entra por el mismo camino que un archivo: misma validación, vista previa, "Quitar foto" y subida al bucket `profile-photos` al guardar el perfil.
+- **Usar cámara** aparece solo si el navegador ofrece `navigator.mediaDevices.getUserMedia`, que requiere HTTPS o `localhost`. Si no se da el permiso o no hay cámara, se explica el motivo y sigue disponible **Buscar**.
+- La cámara se apaga siempre (todas las pistas con `stop()`): al tomar la foto, al cancelar, al guardar, al cerrar el diálogo, y también si el permiso llega después de cerrar. Escape cierra la cámara, no el diálogo.
+- Los E2E usan la cámara falsa de Chromium (`--use-fake-device-for-media-stream`), así que no necesitan una cámara real.
 
 ## Confirmaciones de acciones destructivas
 
