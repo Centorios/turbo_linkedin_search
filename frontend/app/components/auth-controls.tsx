@@ -33,7 +33,7 @@ export function AuthControls() {
         type="button"
         onClick={handleSignOut}
         data-testid="auth-sign-out"
-        className="focus-ring rounded-lg border border-border bg-surface px-3 py-1.5 text-body-sm font-semibold text-text-muted transition-colors hover:bg-subtle hover:text-text"
+        className="focus-ring rounded-lg border border-border bg-surface px-2.5 py-1.5 text-caption-xs font-semibold text-text-muted sm:px-3 sm:text-body-sm transition-colors hover:bg-subtle hover:text-text"
       >
         Cerrar sesión
       </button>

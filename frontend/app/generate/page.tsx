@@ -157,7 +157,7 @@ export default function GeneratePage() {
                 Pegá tu biografía o historia laboral en texto libre; la convertimos en un CV estructurado.
               </p>
 
-              <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
+              <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-border bg-primary-surface p-3">
                 <SparkleIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <p className="text-caption-xs leading-relaxed text-text-muted">
                   Cuanta más información incluyas (años, empresas, logros con números, formación e idiomas), mejor será el
@@ -264,7 +264,7 @@ export default function GeneratePage() {
               </div>
             ) : (
               <div className="preview-stage flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-2xl px-8 py-16 text-center">
-                <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white bg-white/75 shadow-sm"><DocumentIcon className="h-9 w-9 text-primary" /></div>
+                <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-border bg-surface/75 shadow-sm"><DocumentIcon className="h-9 w-9 text-primary" /></div>
                 <p className="text-body-sm font-semibold text-text">Tu CV aparecerá aquí</p>
                 <p className="max-w-xs text-caption-xs text-text-muted">
                   Escribí tu experiencia a la izquierda y hacé clic en &ldquo;Generar CV&rdquo; para ver la vista previa.

@@ -4,6 +4,7 @@ import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, signInWithGoogle, signUp } from "./actions";
 import { BrandLogo } from "../components/brand-logo";
+import { ThemeToggle } from "../components/theme-toggle";
 import { AlertIcon, CheckCircleIcon, EyeIcon, EyeOffIcon, GoogleIcon, SpinnerIcon } from "../components/icons";
 
 type AuthMode = "sign-in" | "sign-up";
@@ -85,7 +86,10 @@ function AuthPageContent() {
   }
 
   return (
-    <main className="app-canvas flex min-h-screen items-center justify-center px-4 py-8 sm:px-8">
+    <main className="app-canvas flex min-h-screen flex-col items-center justify-center px-4 py-8 sm:px-8">
+      <div className="mb-4 flex w-full max-w-5xl justify-end">
+        <ThemeToggle />
+      </div>
       <div className="grid w-full max-w-5xl items-center gap-8 lg:grid-cols-2 lg:gap-16">
         <section data-testid="auth-introduction" className="brand-panel rounded-3xl p-7 sm:p-10 lg:py-16">
           <div className="relative">
