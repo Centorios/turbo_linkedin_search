@@ -111,12 +111,13 @@ class AzureOpenAIProvider:
         if not texts:
             return []
         endpoint = self.settings.azure_openai_endpoint.rstrip("/")
-        deployment = quote(self.settings.azure_openai_embedding_deployment, safe="")
-        url = (
-            f"{endpoint}/openai/deployments/{deployment}/embeddings"
-            f"?api-version={quote(self.settings.azure_openai_api_version, safe='')}"
-        )
-        payload = {"input": texts, "dimensions": self.settings.azure_openai_embedding_dimensions}
+        api_version = quote(self.settings.azure_openai_api_version, safe="")
+        url = f"{endpoint}/openai/v1/embeddings?api-version={api_version}"
+        payload = {
+            "model": self.settings.azure_openai_embedding_deployment,
+            "input": texts,
+            "dimensions": self.settings.azure_openai_embedding_dimensions,
+        }
         timeout = self.settings.match_embeddings_timeout_seconds
         try:
             if self.client is None:
@@ -148,14 +149,13 @@ class AzureOpenAIProvider:
 
     async def _request_json(self, messages: list[dict[str, str]], timeout: float = 60) -> dict[str, Any]:
         endpoint = self.settings.azure_openai_endpoint.rstrip("/")
-        deployment = quote(self.settings.azure_openai_deployment, safe="")
-        url = (
-            f"{endpoint}/openai/deployments/{deployment}/chat/completions"
-            f"?api-version={quote(self.settings.azure_openai_api_version, safe='')}"
-        )
+        api_version = quote(self.settings.azure_openai_api_version, safe="")
+        url = f"{endpoint}/openai/v1/chat/completions?api-version={api_version}"
         payload = {
+            "model": self.settings.azure_openai_deployment,
             "messages": messages,
-            "temperature": 0,
+            # GPT-6 reasoning deployments reject sampling parameters such as temperature.
+            "max_completion_tokens": 8192,
             "response_format": {"type": "json_object"},
         }
 
