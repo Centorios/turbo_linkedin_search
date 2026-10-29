@@ -125,3 +125,12 @@ export function DocumentIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function MicrophoneIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden="true">
+      <rect x="7" y="2.5" width="6" height="9.5" rx="3" />
+      <path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5M7.5 17.5h5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

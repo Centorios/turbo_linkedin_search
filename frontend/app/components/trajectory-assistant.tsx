@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AlertIcon, CheckCircleIcon, SpinnerIcon } from "./icons";
 import { requestTrajectoryAssistance } from "../lib/trajectory-assistance-client";
+import { appendDictation } from "../lib/speech-dictation";
+import { VoiceInputField } from "./voice-input-field";
 import type {
   AssistanceResult,
   AssistanceTurnRequest,
@@ -179,14 +181,22 @@ export function TrajectoryAssistant({
                 <label htmlFor={`answer-${question.id}`} className="mb-1.5 block text-body-sm font-semibold text-text">
                   {question.text}
                 </label>
-                <textarea
-                  id={`answer-${question.id}`}
-                  value={answerValues[question.id] ?? ""}
-                  onChange={(event) => setAnswerValues((current) => ({ ...current, [question.id]: event.target.value }))}
-                  rows={3}
-                  data-testid={`trajectory-answer-${question.id}`}
-                  className="focus-ring w-full resize-y rounded-lg border border-border bg-surface p-3 text-body-sm text-text"
-                />
+                <VoiceInputField
+                  id={`trajectory-answer-${question.id}`}
+                  fieldLabel={question.text}
+                  onTranscript={(chunk) =>
+                    setAnswerValues((current) => ({ ...current, [question.id]: appendDictation(current[question.id] ?? "", chunk) }))
+                  }
+                >
+                  <textarea
+                    id={`answer-${question.id}`}
+                    value={answerValues[question.id] ?? ""}
+                    onChange={(event) => setAnswerValues((current) => ({ ...current, [question.id]: event.target.value }))}
+                    rows={3}
+                    data-testid={`trajectory-answer-${question.id}`}
+                    className="focus-ring w-full resize-y rounded-lg border border-border bg-surface p-3 text-body-sm text-text"
+                  />
+                </VoiceInputField>
               </div>
             ))}
             <p className="text-caption-xs text-text-muted">

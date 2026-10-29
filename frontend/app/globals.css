@@ -197,3 +197,23 @@ html.theme-transition *::after {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* Voice dictation (components/voice-input-field.tsx): room for the microphone
+   button in the textarea's corner, and a soft pulse while it is listening.
+   The pulse is turned off by the prefers-reduced-motion rule above. */
+.voice-input-field[data-voice-enabled="true"] > textarea {
+  padding-bottom: 3.25rem;
+}
+
+.voice-input-button[data-listening="true"] {
+  animation: voice-input-pulse 1.6s ease-out infinite;
+}
+
+@keyframes voice-input-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-danger) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--color-danger) 0%, transparent);
+  }
+}
