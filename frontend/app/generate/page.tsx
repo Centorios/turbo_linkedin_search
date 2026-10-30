@@ -13,6 +13,8 @@ import { TemplateSelector } from "../components/template-selector";
 import { PdfDownload } from "../components/pdf-download";
 import { AlertIcon, BoltIcon, DocumentIcon, SparkleIcon, SpinnerIcon } from "../components/icons";
 import { CvImportEditor } from "../components/cv-import-editor";
+import { VoiceInputField } from "../components/voice-input-field";
+import { appendDictation } from "../lib/speech-dictation";
 
 export default function GeneratePage() {
   const {
@@ -107,6 +109,13 @@ export default function GeneratePage() {
     setApprovedAssistantText([]);
   }
 
+  // Dictated phrases are added at the end, like typing them: the previous assistant review no longer applies.
+  function appendDictatedText(chunk: string) {
+    setText((current) => appendDictation(current, chunk));
+    setHasReviewedAssistance(false);
+    setApprovedAssistantText([]);
+  }
+
   return (
     <div data-testid="protected-content" className="app-canvas min-h-screen">
       <AppHeader />
@@ -154,7 +163,7 @@ export default function GeneratePage() {
                 )}
               </div>
               <p className="mt-1 text-caption-xs text-text-muted">
-                Pegá tu biografía o historia laboral en texto libre; la convertimos en un CV estructurado.
+                Pegá, escribí o dictá tu biografía o historia laboral en texto libre; la convertimos en un CV estructurado.
               </p>
 
               <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-border bg-primary-surface p-3">
@@ -185,15 +194,22 @@ export default function GeneratePage() {
                 <label htmlFor="professional-text" className="text-body-sm font-semibold text-text">
                   Biografía o experiencia profesional
                 </label>
-                <textarea
+                <VoiceInputField
                   id="professional-text"
-                  value={text}
-                  onChange={(event) => updateSourceText(event.target.value)}
-                  rows={12}
-                  data-testid="professional-text"
-                  placeholder="Ej.: Ana García, ana@example.com, Madrid. Senior Designer en Acme (03-2021 a la actualidad). Lideré el rediseño del checkout, reduciendo el abandono un 18%. Educación: Diseño Gráfico en UBA (2015-2019)."
-                  className="focus-ring w-full resize-y rounded-xl border border-border bg-surface p-4 text-body-sm leading-relaxed text-text placeholder:text-text-faint"
-                />
+                  fieldLabel="Biografía o experiencia profesional"
+                  onTranscript={appendDictatedText}
+                  disabled={isGenerating}
+                >
+                  <textarea
+                    id="professional-text"
+                    value={text}
+                    onChange={(event) => updateSourceText(event.target.value)}
+                    rows={12}
+                    data-testid="professional-text"
+                    placeholder="Ej.: Ana García, ana@example.com, Madrid. Senior Designer en Acme (03-2021 a la actualidad). Lideré el rediseño del checkout, reduciendo el abandono un 18%. Educación: Diseño Gráfico en UBA (2015-2019)."
+                    className="focus-ring w-full resize-y rounded-xl border border-border bg-surface p-4 text-body-sm leading-relaxed text-text placeholder:text-text-faint"
+                  />
+                </VoiceInputField>
                 <p className="text-right text-caption-xs text-text-faint">{text.length} caracteres</p>
 
                 {error && (

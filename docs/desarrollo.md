@@ -231,6 +231,20 @@ En **Editar perfil**, la foto se elige con **Buscar** (un archivo JPEG, PNG o We
 - La cámara se apaga siempre (todas las pistas con `stop()`): al tomar la foto, al cancelar, al guardar, al cerrar el diálogo, y también si el permiso llega después de cerrar. Escape cierra la cámara, no el diálogo.
 - Los E2E usan la cámara falsa de Chromium (`--use-fake-device-for-media-stream`), así que no necesitan una cámara real.
 
+## Dictado por voz
+
+En **Biografía o experiencia profesional** (`/generate`) y en cada respuesta de **Mejorar trayectoria y
+competencias** hay un botón de micrófono (**Dictar**). Cada frase reconocida se **agrega al final** del texto,
+sin borrar lo escrito; lo provisorio se ve debajo del campo ("Escuchando…") y no se escribe hasta confirmarse.
+
+- Usa el reconocimiento de voz del navegador (Web Speech API: `SpeechRecognition` o `webkitSpeechRecognition`) en `es-AR`, sin dependencias ni backend. El código está en `frontend/app/lib/speech-dictation.ts` (hook `useSpeechDictation`, `appendDictation`, mensajes de error) y `frontend/app/components/voice-input-field.tsx`, que envuelve el `<textarea>`.
+- El botón aparece solo si el navegador ofrece la API (Chrome, Edge, Safari; no Firefox) y requiere HTTPS o `localhost` para el permiso del micrófono.
+- **Privacidad:** la app no recibe ni guarda audio; solo el texto resultante entra al flujo de siempre. En Chrome y Edge el navegador procesa el audio en el servicio de voz de su fabricante.
+- El micrófono se libera siempre: al tocar de nuevo (se conserva la última frase), al generar el CV, al cerrar el asistente, al salir de la pantalla y al empezar otro dictado (hay uno solo a la vez).
+- Errores en rioplatense por código (`not-allowed`, `audio-capture`, `network`, `no-speech`…); `aborted` no muestra nada.
+- Para sumar el micrófono a otro campo: envolver el `<textarea>` con `<VoiceInputField id="..." onTranscript={(chunk) => setValue((v) => appendDictation(v, chunk))}>`. El nombre accesible sale del contenido del botón (no de `aria-label`), para que `getByLabel(<etiqueta del campo>)` siga encontrando solo el campo.
+- Los E2E (`tests/e2e/voice-dictation.spec.ts`) inyectan un reconocedor falso con `addInitScript`; no necesitan micrófono ni cuenta real.
+
 ## Confirmaciones de acciones destructivas
 
 Las acciones que borran datos (eliminar un CV del historial, eliminar un CV importado) usan
