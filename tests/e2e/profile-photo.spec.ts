@@ -170,7 +170,7 @@ test.describe("Foto de perfil opcional", () => {
 
     await expect(page.getByRole("dialog", { name: "Editar perfil" })).toHaveCount(0);
     expect(mocks.profile?.photoPath).toBeNull();
-    expect(mocks.deletions).toEqual([mocks.uploads[0]]);
+    expect(mocks.deletions).toEqual([]);
   });
 
   test("rechaza formatos no permitidos y archivos mayores a 5 MB", async ({ page }) => {

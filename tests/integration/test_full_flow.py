@@ -50,7 +50,7 @@ def test_quickstart_authenticated_generation_persists_for_authenticated_user() -
         "00000000-0000-0000-0000-000000000010",
     )
     assert response.status_code == 200
-    assert response.json() == VALID_CV
+    assert response.json() == {**VALID_CV, "certificateMergeReport": {"addedIds": [], "duplicateIds": [], "pendingIds": []}}
     assert stored_row is not None
     assert stored_row["user_id"] == AUTHENTICATED_USER_ID
     assert stored_row["data"] == VALID_CV

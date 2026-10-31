@@ -1,10 +1,13 @@
 from uuid import UUID
+from pydantic import Field
 
 from app.models.cv import StrictModel, StructuredCv
+from app.models.profile_certificate import CertificateMergeReport
 
 
 class GenerateCvRequest(StrictModel):
     text: str
+    selectedCertificateIds: list[UUID] = Field(default_factory=list, max_length=50)
 
 
 def parse_request_id(value: str) -> UUID:
@@ -15,4 +18,4 @@ def parse_request_id(value: str) -> UUID:
 
 
 class GenerateCvResponse(StructuredCv):
-    pass
+    certificateMergeReport: CertificateMergeReport = Field(default_factory=CertificateMergeReport)

@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import Field, StringConstraints, field_validator
 
 from app.models.cv import StrictModel, StructuredCv
+from app.models.profile_certificate import CertificateMergeReport
 
 
 class CvSource(StrictModel):
@@ -30,6 +31,7 @@ class ResumeVersion(StrictModel):
     parentResumeId: UUID | None
     createdAt: datetime
     data: StructuredCv
+    certificateMergeReport: CertificateMergeReport = Field(default_factory=CertificateMergeReport)
 
 
 class CvImportResponse(StrictModel):
@@ -79,6 +81,7 @@ EditResponse = Annotated[EditNeedsInput | EditReady, Field(discriminator="status
 class SaveVersionRequest(StrictModel):
     baseResumeId: UUID
     data: StructuredCv
+    selectedCertificateIds: list[UUID] = Field(default_factory=list, max_length=50)
 
 
 class ResumeEditRequest(StrictModel):
@@ -94,6 +97,7 @@ class ResumeEditRequest(StrictModel):
 
 class ResumeVersionRequest(StrictModel):
     data: StructuredCv
+    selectedCertificateIds: list[UUID] = Field(default_factory=list, max_length=50)
 
 
 class DeleteSourceResponse(StrictModel):

@@ -1,4 +1,5 @@
 import type { StructuredCv } from "./cv";
+import type { CertificateMergeReport } from "./profile-certificate";
 
 export interface CvSource {
   id: string;
@@ -15,6 +16,7 @@ export interface ResumeVersion {
   parentResumeId: string | null;
   createdAt: string;
   data: StructuredCv;
+  certificateMergeReport?: CertificateMergeReport;
 }
 
 export interface CvImportResponse {

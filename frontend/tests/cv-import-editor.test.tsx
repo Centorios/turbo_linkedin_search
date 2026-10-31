@@ -14,9 +14,13 @@ const mocks = vi.hoisted(() => ({
   saveResumeVersion: vi.fn(),
 }));
 const history = vi.hoisted(() => ({ getResume: vi.fn() }));
+const photos = vi.hoisted(() => ({ getProfilePhotoUrl: vi.fn(), uploadProfilePhoto: vi.fn(), validateProfilePhoto: vi.fn() }));
+const certificates = vi.hoisted(() => ({ listProfileCertificates: vi.fn(), uploadProfileCertificate: vi.fn(), reviewProfileCertificate: vi.fn() }));
 
 vi.mock("../app/lib/cv-import-client", () => mocks);
 vi.mock("../app/lib/resume-history-client", () => history);
+vi.mock("../app/lib/profile-photo-client", () => photos);
+vi.mock("../app/lib/profile-certificate-client", () => certificates);
 vi.mock("../app/components/cv-preview", () => ({
   CvPreview: ({ cv }: { cv: { summary: string } }) => <div data-testid="cv-preview">{cv.summary}</div>,
 }));
@@ -77,6 +81,10 @@ const saved: ResumeVersion = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  photos.validateProfilePhoto.mockReturnValue(null);
+  photos.getProfilePhotoUrl.mockResolvedValue("https://example.test/photo");
+  photos.uploadProfilePhoto.mockResolvedValue("00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002.jpg");
+  certificates.listProfileCertificates.mockResolvedValue([]);
   mocks.importCv.mockResolvedValue(imported);
   mocks.proposeCvEdit
     .mockResolvedValueOnce({ status: "needs_input", questions: ["¿Cuándo comenzaste?"] })
@@ -92,6 +100,95 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+});
+
+it("permite agregar foto a un CV histórico sin foto y guardar una versión nueva", async () => {
+  render(<CvImportEditor initialResumeId="resume-9" userId="00000000-0000-0000-0000-000000000001" />);
+  await screen.findByTestId("cv-history-edit-banner");
+  const addPhoto = screen.getByTestId("cv-edit-photo-button");
+  expect(addPhoto.textContent).toBe("Agregar foto");
+  const fileClick = vi.spyOn(screen.getByTestId("cv-edit-photo"), "click");
+  fireEvent.click(addPhoto);
+  expect(fileClick).toHaveBeenCalledOnce();
+  fireEvent.change(screen.getByTestId("cv-edit-photo"), { target: { files: [new File(["photo"], "foto.jpg", { type: "image/jpeg" })] } });
+  await screen.findByTestId("cv-import-save");
+  fireEvent.click(screen.getByTestId("cv-import-save"));
+  await waitFor(() => expect(mocks.saveResumeVersion).toHaveBeenCalledWith(
+    "resume-9", expect.objectContaining({ personalInfo: expect.objectContaining({ photoPath: "00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002.jpg" }) }),
+    expect.any(String), [],
+  ));
+});
+
+it("muestra la foto actual y permite quitarla en una nueva propuesta", async () => {
+  history.getResume.mockResolvedValueOnce({ id: "resume-9", createdAt: "2026-10-17T03:33:00Z", data: { ...cv, personalInfo: { ...cv.personalInfo, photoPath: "00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002.jpg" } } });
+  render(<CvImportEditor initialResumeId="resume-9" userId="00000000-0000-0000-0000-000000000001" />);
+  expect((await screen.findByTestId("cv-edit-photo-preview")).getAttribute("src")).toBe("https://example.test/photo");
+  expect(screen.getByTestId("cv-edit-photo-button").textContent).toBe("Reemplazar foto");
+  fireEvent.click(screen.getByTestId("cv-edit-remove-photo"));
+  expect(screen.getByTestId("cv-edit-photo-button").textContent).toBe("Agregar foto");
+  await screen.findByTestId("cv-import-save");
+  fireEvent.click(screen.getByTestId("cv-import-save"));
+  await waitFor(() => expect(mocks.saveResumeVersion).toHaveBeenCalledWith(
+    "resume-9", expect.objectContaining({ personalInfo: expect.objectContaining({ photoPath: null }) }),
+    expect.any(String), [],
+  ));
+});
+
+it("reutiliza la clave de guardado al reintentar la misma propuesta", async () => {
+  mocks.saveResumeVersion.mockRejectedValueOnce(new Error("Sin conexión"));
+  render(<CvImportEditor initialResumeId="resume-9" userId="00000000-0000-0000-0000-000000000001" />);
+  await screen.findByTestId("cv-history-edit-banner");
+  fireEvent.change(screen.getByTestId("cv-edit-instruction"), { target: { value: "Mejorá el resumen" } });
+  fireEvent.click(screen.getByTestId("cv-edit-submit"));
+  await screen.findByTestId("cv-import-save");
+  fireEvent.click(screen.getByTestId("cv-import-save"));
+  await screen.findByText("Sin conexión");
+  fireEvent.click(screen.getByTestId("cv-import-save"));
+  await waitFor(() => expect(mocks.saveResumeVersion).toHaveBeenCalledTimes(2));
+  expect(mocks.saveResumeVersion.mock.calls[0][2]).toBe(mocks.saveResumeVersion.mock.calls[1][2]);
+});
+
+it("selecciona un certificado del perfil y conserva la propuesta tras un error", async () => {
+  const certificateId = "00000000-0000-0000-0000-000000000901";
+  certificates.listProfileCertificates.mockResolvedValueOnce([{
+    id: certificateId, originalFilename: "curso.pdf", mimeType: "application/pdf", fileSizeBytes: 10,
+    status: "ready", certification: { name: "Curso", issuer: "Academia", issueDate: "2025", expirationDate: "", credential: "A1" },
+    language: null, createdAt: "2026-10-31T00:00:00Z", duplicate: false,
+  }]);
+  mocks.saveResumeVersion.mockRejectedValueOnce(new Error("Sin conexión"));
+  render(<CvImportEditor initialResumeId="resume-9" userId="00000000-0000-0000-0000-000000000001" />);
+  await screen.findByTestId("cv-history-edit-banner");
+  fireEvent.click(await screen.findByTestId(`certificate-checkbox-${certificateId}`));
+  fireEvent.click(screen.getByTestId("cv-import-save"));
+  await screen.findByText("Sin conexión");
+  expect((screen.getByTestId(`certificate-checkbox-${certificateId}`) as HTMLInputElement).checked).toBe(true);
+  expect(mocks.saveResumeVersion).toHaveBeenCalledWith("resume-9", cv, expect.any(String), [certificateId]);
+});
+
+it("informa cuando el certificado ya figura en el CV guardado", async () => {
+  const certificateId = "00000000-0000-0000-0000-000000000902";
+  certificates.listProfileCertificates.mockResolvedValueOnce([{
+    id: certificateId, originalFilename: "curso.pdf", mimeType: "application/pdf", fileSizeBytes: 10,
+    status: "ready", certification: { name: "Curso", issuer: "Academia", issueDate: "2025", expirationDate: "", credential: "A1" },
+    language: null, createdAt: "2026-10-31T00:00:00Z", duplicate: false,
+  }]);
+  mocks.saveResumeVersion.mockResolvedValueOnce({ ...saved, sourceId: null, certificateMergeReport: { addedIds: [], duplicateIds: [certificateId], pendingIds: [] } });
+  render(<CvImportEditor initialResumeId="resume-9" userId="00000000-0000-0000-0000-000000000001" />);
+  await screen.findByTestId("cv-history-edit-banner");
+  fireEvent.click(await screen.findByTestId(`certificate-checkbox-${certificateId}`));
+  fireEvent.click(screen.getByTestId("cv-import-save"));
+  await waitFor(() => expect(screen.getByTestId("cv-import-status").textContent).toContain("no se duplicaron"));
+});
+
+it("conserva la foto actual cuando falla el reemplazo", async () => {
+  history.getResume.mockResolvedValueOnce({ id: "resume-9", createdAt: "2026-10-17T03:33:00Z", data: { ...cv, personalInfo: { ...cv.personalInfo, photoPath: "00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002.jpg" } } });
+  photos.uploadProfilePhoto.mockRejectedValueOnce(new Error("No se pudo subir la foto"));
+  render(<CvImportEditor initialResumeId="resume-9" userId="00000000-0000-0000-0000-000000000001" />);
+  expect((await screen.findByTestId("cv-edit-photo-preview")).getAttribute("src")).toBe("https://example.test/photo");
+  fireEvent.change(screen.getByTestId("cv-edit-photo"), { target: { files: [new File(["x"], "nueva.jpg", { type: "image/jpeg" })] } });
+  await screen.findByText("No se pudo subir la foto");
+  expect((screen.getByTestId("cv-edit-photo-preview") as HTMLImageElement).src).toBe("https://example.test/photo");
+  expect(screen.queryByTestId("cv-import-save")).toBeNull();
 });
 
 describe("Importación y edición de CV PDF", () => {
@@ -164,6 +261,8 @@ describe("Importación y edición de CV PDF", () => {
       "source-1",
       "resume-1",
       proposal.proposedCv,
+      expect.any(String),
+      [],
     ));
     expect((await screen.findByTestId("cv-import-status")).textContent).toBe("Nueva versión guardada. Ya aparece en tu Historial. Ver en Historial");
   });
@@ -228,7 +327,7 @@ describe("Editar una versión del historial", () => {
     expect(mocks.proposeCvEdit).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId("cv-import-save"));
-    await waitFor(() => expect(mocks.saveResumeVersion).toHaveBeenCalledWith("resume-9", proposal.status === "ready" ? proposal.proposedCv : null));
+    await waitFor(() => expect(mocks.saveResumeVersion).toHaveBeenCalledWith("resume-9", proposal.status === "ready" ? proposal.proposedCv : null, expect.any(String), []));
     expect(mocks.saveCvVersion).not.toHaveBeenCalled();
     expect((await screen.findByTestId("cv-import-status")).textContent).toContain("Ya aparece en tu Historial");
     expect(screen.getByTestId("cv-import-history-link").getAttribute("href")).toBe("/history");

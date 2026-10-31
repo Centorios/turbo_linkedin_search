@@ -50,6 +50,7 @@ export async function saveCvVersion(
   baseResumeId: string,
   data: StructuredCv,
   requestId = crypto.randomUUID(),
+  selectedCertificateIds: string[] = [],
 ): Promise<ResumeVersion> {
   const response = await request(`/api/cv-imports/${encodeURIComponent(sourceId)}/versions`, {
     method: "POST",
@@ -57,7 +58,7 @@ export async function saveCvVersion(
       "Content-Type": "application/json",
       "Idempotency-Key": requestId,
     },
-    body: JSON.stringify({ baseResumeId, data }),
+    body: JSON.stringify({ baseResumeId, data, selectedCertificateIds }),
   });
   return (await response.json()) as ResumeVersion;
 }
@@ -81,11 +82,12 @@ export async function saveResumeVersion(
   resumeId: string,
   data: StructuredCv,
   requestId = crypto.randomUUID(),
+  selectedCertificateIds: string[] = [],
 ): Promise<ResumeVersion> {
   const response = await request(`/api/resumes/${encodeURIComponent(resumeId)}/versions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Idempotency-Key": requestId },
-    body: JSON.stringify({ data }),
+    body: JSON.stringify({ data, selectedCertificateIds }),
   });
   return (await response.json()) as ResumeVersion;
 }

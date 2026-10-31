@@ -1,8 +1,9 @@
 import type { StructuredCv } from "../types/cv";
+import type { CertificateMergeReport } from "../types/profile-certificate";
 import { createSupabaseBrowserClient } from "./supabase";
 import { getBackendUrl } from "./backend-url";
 
-export async function generateCv(text: string, requestId = crypto.randomUUID()): Promise<StructuredCv> {
+export async function generateCv(text: string, requestId = crypto.randomUUID(), selectedCertificateIds: string[] = []): Promise<StructuredCv & { certificateMergeReport: CertificateMergeReport }> {
   const supabase = createSupabaseBrowserClient();
   const {
     data: { session },
@@ -21,7 +22,7 @@ export async function generateCv(text: string, requestId = crypto.randomUUID()):
       "Content-Type": "application/json",
       "Idempotency-Key": requestId,
     },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, selectedCertificateIds }),
   });
 
   if (!response.ok) {
@@ -29,5 +30,5 @@ export async function generateCv(text: string, requestId = crypto.randomUUID()):
     throw new Error(payload?.message ?? payload?.detail?.message ?? "No se pudo generar el CV");
   }
 
-  return (await response.json()) as StructuredCv;
+  return (await response.json()) as StructuredCv & { certificateMergeReport: CertificateMergeReport };
 }

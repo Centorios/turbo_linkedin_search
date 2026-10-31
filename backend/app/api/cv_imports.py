@@ -23,7 +23,10 @@ from app.services.cv_import import (
     InvalidCvImportResponseError,
     InvalidPdfError,
     decode_original_filename,
+    NoChangesError,
 )
+from app.services.cv_photo import InvalidCvPhotoError
+from app.services.profile_certificate_service import InvalidCertificateExtractionError
 
 
 router = APIRouter(prefix="/api/cv-imports", tags=["cv-imports"])
@@ -105,6 +108,12 @@ def save_version(
         return service.save_version(user_id, str(source_id), str(request_id), payload)
     except CvSourceNotFoundError:
         raise _not_found()
+    except InvalidCertificateExtractionError as exc:
+        raise _error(422, "invalid_certificate_selection", str(exc)) from exc
+    except InvalidCvPhotoError as exc:
+        raise _error(422, "invalid_photo", "La foto no está disponible") from exc
+    except NoChangesError as exc:
+        raise _error(409, "no_changes", "La propuesta no contiene cambios") from exc
     except ValueError as exc:
         raise _error(status.HTTP_409_CONFLICT, "idempotency_conflict", "La clave ya se utilizó para otra versión") from exc
     except InvalidCvImportResponseError:
@@ -207,9 +216,16 @@ def save_resume_version(
 ) -> ResumeVersion:
     request_id = _request_uuid(idempotency_key)
     try:
-        return service.save_resume_version(user_id, str(resume_id), str(request_id), payload.data)
+        return service.save_resume_version(user_id, str(resume_id), str(request_id), payload.data,
+            [str(value) for value in payload.selectedCertificateIds])
     except CvSourceNotFoundError:
         raise _resume_not_found()
+    except InvalidCertificateExtractionError as exc:
+        raise _error(422, "invalid_certificate_selection", str(exc)) from exc
+    except InvalidCvPhotoError as exc:
+        raise _error(422, "invalid_photo", "La foto no está disponible") from exc
+    except NoChangesError as exc:
+        raise _error(409, "no_changes", "La propuesta no contiene cambios") from exc
     except ValueError as exc:
         raise _error(status.HTTP_409_CONFLICT, "idempotency_conflict", "La clave ya se utilizó para otra versión") from exc
     except InvalidCvImportResponseError:

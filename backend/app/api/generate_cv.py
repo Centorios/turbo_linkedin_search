@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from app.core.auth import require_user_id
 from app.models.generate_cv import GenerateCvRequest, GenerateCvResponse, parse_request_id
 from app.services.azure_openai import AzureOpenAIError
-from app.services.cv_generation import CvGenerationService, InvalidGeneratedCvError
+from app.services.cv_generation import CvGenerationService, InvalidGeneratedCvError, GenerationIdempotencyConflictError
+from app.services.profile_certificate_service import InvalidCertificateExtractionError
 from app.services.profile_repository import ProfileRepository
 
 
@@ -37,7 +38,12 @@ async def generate_cv(
         raise _error(status.HTTP_400_BAD_REQUEST, "invalid_idempotency_key", "Idempotency-Key debe ser un UUID")
 
     try:
-        result = await service.generate(user_id, str(request_id), payload.text)
+        result = await service.generate(user_id, str(request_id), payload.text,
+                                        [str(value) for value in payload.selectedCertificateIds])
+    except InvalidCertificateExtractionError as exc:
+        raise _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_certificate_selection", str(exc)) from exc
+    except GenerationIdempotencyConflictError as exc:
+        raise _error(status.HTTP_409_CONFLICT, "idempotency_conflict", "La clave ya se utilizó para otra solicitud") from exc
     except InvalidGeneratedCvError:
         raise _error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_model_response", "La respuesta generada no es válida")
     except AzureOpenAIError:

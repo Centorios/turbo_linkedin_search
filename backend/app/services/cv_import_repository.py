@@ -37,7 +37,7 @@ class CvImportRepository:
             return None
         resume_response = (
             self.client.table("resumes")
-            .select("id,user_id,source_id,parent_resume_id,data,created_at")
+            .select("id,user_id,source_id,parent_resume_id,data,request_fingerprint,certificate_merge_report,created_at")
             .eq("user_id", user_id)
             .eq("source_id", source["id"])
             .order("created_at")
@@ -135,12 +135,18 @@ class CvImportRepository:
     def get_resume(self, user_id: str, resume_id: str) -> dict[str, Any] | None:
         response = (
             self.client.table("resumes")
-            .select("id,user_id,source_id,parent_resume_id,data,created_at")
+            .select("id,user_id,source_id,parent_resume_id,data,request_fingerprint,certificate_merge_report,created_at")
             .eq("user_id", user_id)
             .eq("id", resume_id)
             .maybe_single()
             .execute()
         )
+        return response.data if response is not None else None
+
+    def get_version_by_request(self, user_id: str, request_id: str) -> dict[str, Any] | None:
+        response = (self.client.table("resumes")
+                    .select("id,user_id,source_id,parent_resume_id,data,request_fingerprint,certificate_merge_report,created_at")
+                    .eq("user_id", user_id).eq("request_id", request_id).maybe_single().execute())
         return response.data if response is not None else None
 
     def create_version(
@@ -150,10 +156,12 @@ class CvImportRepository:
         request_id: str,
         parent_resume_id: str,
         data: dict[str, Any],
+        request_fingerprint: str | None = None,
+        certificate_merge_report: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         existing_response = (
             self.client.table("resumes")
-            .select("id,user_id,source_id,parent_resume_id,data,created_at")
+            .select("id,user_id,source_id,parent_resume_id,data,request_fingerprint,certificate_merge_report,created_at")
             .eq("user_id", user_id)
             .eq("request_id", request_id)
             .maybe_single()
@@ -161,24 +169,36 @@ class CvImportRepository:
         )
         existing = existing_response.data if existing_response is not None else None
         if existing:
-            if existing["source_id"] != source_id or existing["parent_resume_id"] != parent_resume_id:
+            if (existing["source_id"] != source_id or existing["parent_resume_id"] != parent_resume_id
+                    or (existing.get("request_fingerprint") and existing["request_fingerprint"] != request_fingerprint)):
                 raise ValueError("Idempotency key was already used for a different version")
             return existing
 
-        response = (
-            self.client.table("resumes")
-            .insert(
-                {
-                    "user_id": user_id,
-                    "request_id": request_id,
-                    "source_id": source_id,
-                    "parent_resume_id": parent_resume_id,
-                    "data": data,
-                }
+        try:
+            response = (
+                self.client.table("resumes")
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "request_id": request_id,
+                        "source_id": source_id,
+                        "parent_resume_id": parent_resume_id,
+                        "data": data,
+                        "request_fingerprint": request_fingerprint,
+                        "certificate_merge_report": certificate_merge_report,
+                    }
+                )
+                .select("id,user_id,source_id,parent_resume_id,data,request_fingerprint,certificate_merge_report,created_at")
+                .execute()
             )
-            .select("id,user_id,source_id,parent_resume_id,data,created_at")
-            .execute()
-        )
+        except Exception:
+            existing = self.get_version_by_request(user_id, request_id)
+            if existing is None:
+                raise
+            if (existing["source_id"] != source_id or existing["parent_resume_id"] != parent_resume_id
+                    or (existing.get("request_fingerprint") and existing["request_fingerprint"] != request_fingerprint)):
+                raise ValueError("Idempotency key was already used for a different version")
+            return existing
         version = _inserted_row(response)
         if version is None:
             raise RuntimeError("CV version persistence returned no row")

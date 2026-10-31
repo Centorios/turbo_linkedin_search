@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, Suspense, useState } from "react";
+import { FormEvent, Suspense, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppHeader } from "../components/app-header";
 import { BasicProfileModal } from "../components/basic-profile-modal";
@@ -15,6 +15,7 @@ import { AlertIcon, BoltIcon, DocumentIcon, SparkleIcon, SpinnerIcon } from "../
 import { CvImportEditor } from "../components/cv-import-editor";
 import { VoiceInputField } from "../components/voice-input-field";
 import { appendDictation } from "../lib/speech-dictation";
+import { CertificateSelector } from "../components/certificate-selector";
 
 export default function GeneratePage() {
   const {
@@ -29,6 +30,8 @@ export default function GeneratePage() {
     deferProfile,
   } = useSession();
   const [text, setText] = useState("");
+  const [selectedCertificateIds, setSelectedCertificateIds] = useState<string[]>([]);
+  const generationRequest = useRef<{ payload: string; id: string } | null>(null);
   const [cv, setCv] = useState<Awaited<ReturnType<typeof generateCv>> | null>(null);
   const [template, setTemplate] = useState<CvTemplate>("ats");
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +80,10 @@ export default function GeneratePage() {
       const confirmedSuggestions = hasReviewedAssistance && approvedAssistantText.length > 0
         ? `\n\nInformación factual revisada y confirmada por el usuario:\n${approvedAssistantText.map((item) => `- ${item}`).join("\n")}`
         : "";
-      const generatedCv = await generateCv(`${text}${confirmedSuggestions}`);
+      const requestText = `${text}${confirmedSuggestions}`;
+      const payload = JSON.stringify({ text: requestText, selectedCertificateIds });
+      if (generationRequest.current?.payload !== payload) generationRequest.current = { payload, id: crypto.randomUUID() };
+      const generatedCv = await generateCv(requestText, generationRequest.current.id, selectedCertificateIds);
       if (generatedCv.personalInfo.photoPath) {
         try {
           const photoUrl = await getProfilePhotoUrl(generatedCv.personalInfo.photoPath);
@@ -87,6 +93,8 @@ export default function GeneratePage() {
         }
       }
       setCv(generatedCv);
+      setSelectedCertificateIds([]);
+      generationRequest.current = null;
     } catch (generationError) {
       setError(generationError instanceof Error ? generationError.message : "No se pudo generar el CV. Intentá de nuevo.");
     } finally {
@@ -245,6 +253,7 @@ export default function GeneratePage() {
                   </button>
                   <span className="text-caption-xs text-text-faint">Suele tardar menos de un minuto</span>
                 </div>
+                <div className="mt-5"><CertificateSelector selectedIds={selectedCertificateIds} onChange={setSelectedCertificateIds} /></div>
               </form>
             </div>
           </section>
@@ -260,6 +269,10 @@ export default function GeneratePage() {
                 <div className="preview-stage rounded-2xl p-4 sm:p-6">
                   <CvPreview cv={cv} template={template} />
                 </div>
+                {((cv.certificateMergeReport?.addedIds.length ?? 0) > 0 || (cv.certificateMergeReport?.duplicateIds.length ?? 0) > 0) &&
+                  <p role="status" data-testid="certificate-merge-report" className="text-body-sm text-text-muted">
+                    {cv.certificateMergeReport.addedIds.length} certificados agregados; {cv.certificateMergeReport.duplicateIds.length} ya figuraban en el CV.
+                  </p>}
               </>
             ) : isGenerating ? (
               <div role="status" className="preview-stage rounded-2xl p-4 sm:p-6">

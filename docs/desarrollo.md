@@ -76,6 +76,28 @@ Supabase (**SQL Editor** → pegar el archivo → **Run**) antes de usarse en lo
 Todas están escritas para poder correrse más de una vez (`if not exists`, `drop policy if exists`,
 `on conflict`).
 
+### Certificados del perfil
+
+En `/generate`, la sección **Certificados** está debajo de **Generar CV**. **Subir Archivo**
+permite cargar PDF, JPEG o PNG antes de crear el CV. En **Lista de Certificados** se pueden
+marcar credenciales individuales, **Seleccionar todos** o **Quitar selección**. Los archivos
+nuevos confirmados quedan seleccionados para el CV actual; los ya guardados en el perfil
+aparecen inicialmente desmarcados. Aplicar `backend/supabase/migrations/010_user_certificates.sql`
+en Supabase antes de usar la biblioteca.
+El botón **Ver archivo** de cada entrada abre el PDF o la imagen original en una vista previa
+autenticada, tanto al crear como al editar un CV.
+**Eliminar certificado**, junto a **Ver archivo**, pide confirmación y borra el archivo privado
+y la credencial del perfil. También lo quita de la selección del CV en curso; las versiones
+de CV ya guardadas conservan sus datos.
+
+Si la lista indica que no se pudo conectar con el servidor, comprobar primero
+`http://127.0.0.1:8000/health`. Si responde, verificar que `NEXT_PUBLIC_BACKEND_URL` en
+`frontend/.env.local` apunta a ese backend y que el origen exacto del navegador
+(incluido el puerto) figura en `CORS_ORIGINS` de `backend/.env`. Reiniciar los servidores
+después de cambiar estas variables y pulsar **Reintentar carga**. Un error de red
+del navegador no permite distinguir por sí solo entre backend caído, URL incorrecta
+y CORS; consultar la pestaña Network del navegador para identificar la petición fallida.
+
 Si una función nueva falla con un error genérico 500, revisar primero que su migración esté
 aplicada. Por ejemplo, sin `009_cv_import_sources.sql` la importación de CVs responde
 "No se pudo importar el CV" porque faltan la tabla `cv_sources`, la columna `resumes.source_id`

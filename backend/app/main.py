@@ -9,6 +9,7 @@ from app.api.cv_imports import resume_edits_router
 from app.api.cv_imports import router as cv_imports_router
 from app.api.jobs import router as jobs_router
 from app.api.profile import router as profile_router
+from app.api.profile_certificates import router as profile_certificates_router
 from app.api.resumes import router as resumes_router
 from app.api.trajectory_assistance import router as trajectory_assistance_router
 from app.core.logging import RequestLoggingMiddleware, configure_logging
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
     app.include_router(resume_edits_router)
     app.include_router(jobs_router)
     app.include_router(profile_router)
+    app.include_router(profile_certificates_router)
     app.include_router(resumes_router)
     app.include_router(trajectory_assistance_router)
 
