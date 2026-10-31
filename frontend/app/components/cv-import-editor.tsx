@@ -19,6 +19,8 @@ import { FilePickerButton } from "./file-picker-button";
 import { CvPreview, type CvTemplate } from "./cv-preview";
 import { PdfDownload } from "./pdf-download";
 import { TemplateSelector } from "./template-selector";
+import { CertificateSelector } from "./certificate-selector";
+import { getProfilePhotoUrl, uploadProfilePhoto, validateProfilePhoto } from "../lib/profile-photo-client";
 
 type BusyAction = "load" | "import" | "edit" | "save" | "download" | "delete" | null;
 
@@ -49,6 +51,7 @@ export function CvImportEditor({ initialResumeId = null, userId = null }: CvImpo
   const [historyVersion, setHistoryVersion] = useState<{ createdAt: string } | null>(null);
   const [savedToHistory, setSavedToHistory] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const scrollToEditor = useRef(false);
   const [baseVersion, setBaseVersion] = useState<ResumeVersion | null>(null);
   const [proposal, setProposal] = useState<StructuredCv | null>(null);
@@ -62,8 +65,12 @@ export function CvImportEditor({ initialResumeId = null, userId = null }: CvImpo
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [selectedCertificateIds, setSelectedCertificateIds] = useState<string[]>([]);
+  const versionRequest = useRef<{ payload: string; id: string } | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   function resetEdit() {
+    versionRequest.current = null;
     setProposal(null);
     setChangedSections([]);
     setChangeSummary("");
@@ -71,6 +78,7 @@ export function CvImportEditor({ initialResumeId = null, userId = null }: CvImpo
     setAnswers([]);
     setInstruction("");
     setSavedToHistory(false);
+    setSelectedCertificateIds([]);
   }
 
   useEffect(() => {
@@ -186,14 +194,18 @@ export function CvImportEditor({ initialResumeId = null, userId = null }: CvImpo
   }
 
   async function handleSave() {
-    if (!baseVersion || !proposal || (!source && !historyVersion)) return;
+    if (!baseVersion || (!source && !historyVersion)) return;
     setBusy("save");
     setError(null);
     setStatus("Guardando nueva versión...");
     try {
+      const data = cleanCv(proposal ?? baseVersion.data);
+      const requestPayload = JSON.stringify({ baseResumeId: baseVersion.id, data, selectedCertificateIds });
+      if (versionRequest.current?.payload !== requestPayload) versionRequest.current = { payload: requestPayload, id: crypto.randomUUID() };
+      const requestId = versionRequest.current.id;
       const saved = source
-        ? await saveCvVersion(source.id, baseVersion.id, proposal)
-        : await saveResumeVersion(baseVersion.id, proposal);
+        ? await saveCvVersion(source.id, baseVersion.id, data, requestId, selectedCertificateIds)
+        : await saveResumeVersion(baseVersion.id, data, requestId, selectedCertificateIds);
       // The saved version becomes the base, so editing can continue from it.
       setBaseVersion(saved);
       if (historyVersion) setHistoryVersion({ createdAt: saved.createdAt });
@@ -201,7 +213,11 @@ export function CvImportEditor({ initialResumeId = null, userId = null }: CvImpo
       setChangedSections([]);
       setChangeSummary("");
       setSavedToHistory(true);
-      setStatus("Nueva versión guardada. Ya aparece en tu Historial.");
+      setSelectedCertificateIds([]);
+      versionRequest.current = null;
+      setStatus(saved.certificateMergeReport?.duplicateIds.length
+        ? "Nueva versión guardada. Los certificados existentes no se duplicaron. Ya aparece en tu Historial."
+        : "Nueva versión guardada. Ya aparece en tu Historial.");
     } catch (saveError) {
       setStatus(null);
       setError(saveError instanceof Error ? saveError.message : "No se pudo guardar la versión.");
@@ -250,6 +266,34 @@ export function CvImportEditor({ initialResumeId = null, userId = null }: CvImpo
   }
 
   const displayedCv = proposal ?? baseVersion?.data ?? null;
+  const photoPath = displayedCv?.personalInfo.photoPath ?? null;
+  useEffect(() => {
+    let active = true;
+    if (!photoPath) { setPhotoUrl(null); return; }
+    setPhotoUrl(null);
+    void getProfilePhotoUrl(photoPath).then((url) => { if (active) setPhotoUrl(url); })
+      .catch(() => { if (active) setPhotoUrl(null); });
+    return () => { active = false; };
+  }, [photoPath]);
+  const previewCv = displayedCv ? { ...displayedCv, personalInfo: { ...displayedCv.personalInfo, photoUrl } } : null;
+
+  async function changePhoto(file: File | null) {
+    if (!baseVersion) return;
+    if (file) {
+      const validation = validateProfilePhoto(file);
+      if (validation) { setError(validation); return; }
+      setBusy("save"); setError(null);
+      try {
+        const path = await uploadProfilePhoto(file);
+        setProposal({ ...cleanCv(proposal ?? baseVersion.data), personalInfo: { ...cleanCv(proposal ?? baseVersion.data).personalInfo, photoPath: path } });
+        setStatus("Foto agregada a la propuesta. Guardá una nueva versión para conservarla.");
+      } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo subir la foto."); }
+      finally { setBusy(null); }
+    } else {
+      setProposal({ ...cleanCv(proposal ?? baseVersion.data), personalInfo: { ...cleanCv(proposal ?? baseVersion.data).personalInfo, photoPath: null } });
+      setStatus("Foto quitada de la propuesta. Guardá una nueva versión para conservar el cambio.");
+    }
+  }
 
   return (
     <section
@@ -340,6 +384,15 @@ export function CvImportEditor({ initialResumeId = null, userId = null }: CvImpo
 
         {(source || historyVersion) && baseVersion && (
           <>
+            <div className="mt-5"><CertificateSelector selectedIds={selectedCertificateIds} onChange={setSelectedCertificateIds} /></div>
+            <section className="mt-5 rounded-xl border border-border p-4" aria-label="Foto del CV">
+              <h3 className="text-body-sm font-semibold">Foto del CV</h3>
+              {photoUrl && photoPath && <img src={photoUrl} alt="Foto actual del CV" data-testid="cv-edit-photo-preview" className="mt-2 h-24 w-24 rounded object-cover" />}
+              <input ref={photoInputRef} id="cv-edit-photo" aria-label="Archivo de foto del CV" className="sr-only" data-testid="cv-edit-photo" type="file" accept="image/jpeg,image/png,image/webp" disabled={busy !== null} onChange={(event) => { const file = event.target.files?.[0]; if (file) void changePhoto(file); event.target.value = ""; }} />
+              <button type="button" data-testid="cv-edit-photo-button" disabled={busy !== null} onClick={() => photoInputRef.current?.click()} className="focus-ring mt-3 rounded-lg bg-primary px-4 py-2 text-body-sm font-semibold text-on-primary hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-70">{photoPath ? "Reemplazar foto" : "Agregar foto"}</button>
+              {photoPath && <button type="button" data-testid="cv-edit-remove-photo" onClick={() => void changePhoto(null)} className="mt-2 block rounded border border-border px-3 py-1 text-body-sm">Quitar foto</button>}
+              <p className="mt-2 text-caption-xs text-text-muted">La plantilla ATS omite la foto; las plantillas visuales la muestran.</p>
+            </section>
             <form onSubmit={handlePropose} className="mt-5 flex flex-col gap-2">
               <label htmlFor="cv-edit-instruction" className="text-body-sm font-semibold text-text">
                 {proposal ? "¿Qué querés ajustar de esta propuesta?" : "¿Qué querés cambiar?"}
@@ -415,7 +468,7 @@ export function CvImportEditor({ initialResumeId = null, userId = null }: CvImpo
       {displayedCv && (
         <div className="mt-6 grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
           <div className="flex flex-col gap-4 lg:col-span-4">
-            {proposal ? (
+            {(proposal || selectedCertificateIds.length > 0) ? (
               <section
                 aria-label="Revisión de la propuesta"
                 data-testid="cv-import-proposal"
@@ -460,10 +513,10 @@ export function CvImportEditor({ initialResumeId = null, userId = null }: CvImpo
               </p>
             )}
             <TemplateSelector value={template} onChange={setTemplate} />
-            <PdfDownload cv={displayedCv} template={template} />
+            <PdfDownload cv={previewCv ?? displayedCv} template={template} />
           </div>
           <div className="preview-stage rounded-2xl p-4 sm:p-6 lg:col-span-8">
-            <CvPreview cv={displayedCv} template={template} />
+            <CvPreview cv={previewCv ?? displayedCv} template={template} />
           </div>
         </div>
       )}
@@ -480,4 +533,9 @@ export function CvImportEditor({ initialResumeId = null, userId = null }: CvImpo
       />
     </section>
   );
+}
+
+function cleanCv(cv: StructuredCv): StructuredCv {
+  const { photoUrl: _photoUrl, ...personalInfo } = cv.personalInfo;
+  return { ...cv, personalInfo };
 }

@@ -14,6 +14,14 @@ El objetivo central es ingerir texto no estructurado y devolver un documento per
 *   **Motor de Plantillas:** El JSON alimenta componentes de interfaz de usuario correspondientes a distintas plantillas (ej. "Minimalista ATS", "Creativo PDF").
 *   **Exportación:** Renderizado del componente visual a un archivo PDF descargable.
 
+### Certificados y foto por versión
+
+El usuario puede subir certificados PDF con texto (hasta 5 páginas) o imágenes JPEG/PNG a una biblioteca privada de su perfil. Cada archivo admite hasta 5 MiB; se pueden cargar hasta 10 por operación y conservar hasta 50 por perfil. Azure OpenAI extrae una credencial JSON validada. Si la lectura es incierta, el usuario debe revisar el nombre antes de seleccionarla. La biblioteca detecta archivos repetidos por hash y credenciales equivalentes por referencia o nombre, emisor y fecha compatible.
+
+Al generar un CV, las credenciales guardadas aparecen desmarcadas. Los archivos nuevos confirmados quedan marcados, y «Seleccionar todos» marca las credenciales disponibles. Solo las elegidas se combinan con `certifications` y, cuando corresponda, con `languages` del CV; las credenciales ya presentes se completan sin duplicarse. El CV guarda un snapshot y un reporte `certificateMergeReport` para conservar la selección histórica. La exportación PDF reutiliza las plantillas ATS y visuales actuales.
+
+Desde **Historial → Editar CV**, se pueden incorporar certificados propios a una nueva versión y agregar, reemplazar o quitar la foto. Cada foto se guarda en una ruta UUID nueva dentro del bucket privado `profile-photos`; los objetos referenciados por CVs históricos no se borran. La plantilla ATS omite la foto y las visuales la muestran. El backend valida la propiedad y existencia de la ruta antes de guardar. Aplicar [010_user_certificates.sql](backend/supabase/migrations/010_user_certificates.sql) para habilitar la biblioteca y los metadatos de versiones. El flujo y los límites se detallan en [quickstart.md](specs/016-upload-certificates-cv-photo/quickstart.md).
+
 ## Etapa 2: Desarrollo Final - Matcher de Empleos
 Aquí el sistema pasa de ser una herramienta de formato a un agente automatizado. Se requiere infraestructura en segundo plano para buscar y evaluar ofertas sin bloquear la experiencia del usuario web.
 

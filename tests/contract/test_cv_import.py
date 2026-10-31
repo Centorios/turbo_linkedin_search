@@ -47,6 +47,7 @@ class FakeImportService:
         self.edit_error: Exception | None = None
         self.deleted: list[str] = []
         self.save_request_ids: list[str] = []
+        self.saved_certificate_ids: list[str] = []
 
     async def import_pdf(self, user_id: str, request_id: str, filename: str, pdf: bytes) -> dict:
         if self.import_error is not None:
@@ -76,12 +77,14 @@ class FakeImportService:
 
     def save_version(self, user_id: str, source_id: str, request_id: str, request) -> dict:
         self.save_request_ids.append(request_id)
+        self.saved_certificate_ids = [str(value) for value in request.selectedCertificateIds]
         return {
             "id": RESUME_ID,
             "sourceId": source_id,
             "parentResumeId": request.baseResumeId,
             "createdAt": "2026-10-14T12:00:00Z",
             "data": request.data.model_dump(),
+            "certificateMergeReport": {"addedIds": self.saved_certificate_ids, "duplicateIds": [], "pendingIds": []},
         }
 
     def download_source(self, user_id: str, source_id: str) -> tuple[bytes, str]:
@@ -272,3 +275,15 @@ def test_source_file_download_and_delete_are_available(import_service) -> None:
     assert downloaded.content == b"%PDF-source"
     assert deleted.status_code == 204
     assert import_service.deleted == [SOURCE_ID]
+
+
+def test_imported_version_forwards_selected_profile_certificates(import_service) -> None:
+    certificate_id = "00000000-0000-0000-0000-000000000701"
+    response = TestClient(app).post(
+        f"/api/cv-imports/{SOURCE_ID}/versions",
+        headers={"Idempotency-Key": str(UUID(int=702))},
+        json={"baseResumeId": RESUME_ID, "data": CV, "selectedCertificateIds": [certificate_id]},
+    )
+    assert response.status_code == 201
+    assert import_service.saved_certificate_ids == [certificate_id]
+    assert response.json()["certificateMergeReport"]["addedIds"] == [certificate_id]

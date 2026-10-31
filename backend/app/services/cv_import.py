@@ -1,4 +1,6 @@
 import logging
+import hashlib
+import json
 import re
 from io import BytesIO
 from typing import Any
@@ -22,6 +24,9 @@ from app.models.cv_import import (
 )
 from app.services.azure_openai import AzureOpenAIError, AzureOpenAIProvider
 from app.services.cv_import_repository import CvImportRepository
+from app.services.certificate_merge import merge_selected_certificates
+from app.services.profile_certificate_service import ProfileCertificateService
+from app.services.cv_photo import validate_cv_photo
 
 
 logger = logging.getLogger(__name__)
@@ -49,6 +54,10 @@ class InvalidCvImportResponseError(Exception):
 
 
 class CvSourceNotFoundError(Exception):
+    pass
+
+
+class NoChangesError(Exception):
     pass
 
 
@@ -172,6 +181,9 @@ class CvImportService:
             if result.get("status") != "ready":
                 raise InvalidCvImportResponseError("CV edit response has an invalid status")
             proposed = self._validate_cv(result.get("proposedCv"))
+            proposed_data = proposed.model_dump()
+            proposed_data["personalInfo"]["photoPath"] = edit_base.personalInfo.photoPath
+            proposed = self._validate_cv(proposed_data)
         except (ValidationError, AttributeError, TypeError) as exc:
             raise InvalidCvImportResponseError("CV edit response did not match its contract") from exc
         except AzureOpenAIError:
@@ -204,17 +216,12 @@ class CvImportService:
         base = self.repository.get_resume(user_id, str(request.baseResumeId))
         if source is None or base is None or base.get("source_id") != source_id:
             raise CvSourceNotFoundError("CV source not found")
-        saved = self.repository.create_version(
-            user_id=user_id,
-            source_id=source_id,
-            request_id=request_id,
-            parent_resume_id=str(request.baseResumeId),
-            data=request.data.model_dump(),
-        )
-        return self._resume_version(saved, source_id)
+        return self._save_version(user_id, source_id, request_id, base, request.data,
+                                  [str(value) for value in request.selectedCertificateIds])
 
     def save_resume_version(
-        self, user_id: str, resume_id: str, request_id: str, data: StructuredCv
+        self, user_id: str, resume_id: str, request_id: str, data: StructuredCv,
+        selected_certificate_ids: list[str] | None = None,
     ) -> ResumeVersion:
         """Saves an edited history version as a new version; the base is never overwritten.
         A version of an imported PDF keeps its source."""
@@ -222,14 +229,35 @@ class CvImportService:
         if base is None:
             raise CvSourceNotFoundError("Resume not found")
         source_id = base.get("source_id")
+        return self._save_version(user_id, str(source_id) if source_id else None,
+                                  request_id, base, data, selected_certificate_ids or [])
+
+    def _save_version(self, user_id: str, source_id: str | None, request_id: str,
+                      base: dict[str, Any], data: StructuredCv,
+                      selected_certificate_ids: list[str]) -> ResumeVersion:
+        fingerprint = hashlib.sha256(json.dumps({"base": base["id"], "data": data.model_dump(),
+            "selectedCertificateIds": selected_certificate_ids}, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        if hasattr(self.repository, "get_version_by_request"):
+            existing = self.repository.get_version_by_request(user_id, request_id)
+            if existing:
+                if existing.get("request_fingerprint") and existing["request_fingerprint"] != fingerprint:
+                    raise ValueError("Idempotency key was already used for a different version")
+                return self._resume_version(existing, source_id)
+        selected = (ProfileCertificateService().selected(user_id, selected_certificate_ids)
+                    if selected_certificate_ids else [])
+        merged, report = merge_selected_certificates(data, selected)
+        previous = self._validate_cv(base["data"])
+        new_photo = merged.personalInfo.photoPath
+        if new_photo != previous.personalInfo.photoPath:
+            validate_cv_photo(user_id, new_photo)
+        if merged.model_dump() == previous.model_dump():
+            raise NoChangesError()
         saved = self.repository.create_version(
-            user_id=user_id,
-            source_id=str(source_id) if source_id else None,
-            request_id=request_id,
-            parent_resume_id=str(resume_id),
-            data=data.model_dump(),
+            user_id=user_id, source_id=source_id, request_id=request_id,
+            parent_resume_id=str(base["id"]), data=merged.model_dump(),
+            request_fingerprint=fingerprint, certificate_merge_report=report.model_dump(),
         )
-        return self._resume_version(saved, saved.get("source_id"))
+        return self._resume_version(saved, source_id)
 
     def download_source(self, user_id: str, source_id: str) -> tuple[bytes, str]:
         result = self.repository.download_source(user_id, str(source_id))
@@ -265,6 +293,7 @@ class CvImportService:
             parentResumeId=row.get("parent_resume_id", row.get("parentResumeId")),
             createdAt=row.get("created_at", row.get("createdAt")),
             data=StructuredCv.model_validate(row["data"]),
+            certificateMergeReport=row.get("certificate_merge_report") or {},
         )
 
     @staticmethod

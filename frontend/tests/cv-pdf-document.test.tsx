@@ -59,6 +59,13 @@ function expectContentInOrder(text: string, entries: string[]) {
   }
 }
 
+it.each(["ats", "creative"] as const)("incluye una credencial elegida una sola vez en %s", async (template) => {
+  const cv = emptyCv();
+  cv.certifications = [{ name: "Certificado Python Avanzado", issuer: "Academia", issueDate: "2025", expirationDate: "", credential: "PY-01" }];
+  const text = (await renderText(cv, template)).toLocaleLowerCase();
+  expect(text.match(/certificado python avanzado/g)).toHaveLength(1);
+});
+
 describe("CvPdfDocument", () => {
   describe.each(TEMPLATES)('template="%s"', (template) => {
     it("renders every empty-state fallback when all arrays are empty", async () => {

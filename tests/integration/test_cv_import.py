@@ -100,6 +100,8 @@ class MemoryRepository:
         request_id: str,
         parent_resume_id: str,
         data: dict,
+        request_fingerprint: str | None = None,
+        certificate_merge_report: dict | None = None,
     ) -> dict:
         existing = next(
             (row for row in self.resumes.values() if row["user_id"] == user_id and row.get("request_id") == request_id),
@@ -116,6 +118,8 @@ class MemoryRepository:
             "parent_resume_id": parent_resume_id,
             "request_id": request_id,
             "data": data,
+            "request_fingerprint": request_fingerprint,
+            "certificate_merge_report": certificate_merge_report,
             "created_at": "2026-10-14T12:01:00Z",
         }
         self.resumes[row["id"]] = row
@@ -338,7 +342,7 @@ def test_confirmed_version_is_linked_and_idempotent() -> None:
         CV,
     )
     request_id = str(uuid4())
-    request = SaveVersionRequest(baseResumeId=imported["resume"]["id"], data=CV)
+    request = SaveVersionRequest(baseResumeId=imported["resume"]["id"], data={**CV, "summary": "Resumen actualizado"})
 
     first = service.save_version(USER_ID, imported["source"]["id"], request_id, request)
     repeated = service.save_version(USER_ID, imported["source"]["id"], request_id, request)
@@ -373,10 +377,7 @@ async def test_confirmed_version_and_source_deletion_remove_all_linked_data() ->
         USER_ID,
         imported.source.id,
         str(uuid4()),
-        request=type("SaveRequest", (), {
-            "baseResumeId": imported.resume.id,
-            "data": type("Data", (), {"model_dump": lambda self: CV})(),
-        })(),
+        request=SaveVersionRequest(baseResumeId=imported.resume.id, data={**CV, "summary": "Resumen actualizado"}),
     )
     assert saved.parentResumeId == imported.resume.id
     assert len(repository.resumes) == 2

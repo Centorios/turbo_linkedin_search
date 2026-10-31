@@ -14,6 +14,7 @@ const cv = {
   certifications: [],
 };
 const editedCv = { ...cv, skills: { hard: ["C", "Python"], soft: [] } };
+const certificateId = "00000000-0000-0000-0000-000000000601";
 
 type Version = { id: string; createdAt: string; data: typeof cv; parentResumeId: string | null };
 
@@ -110,4 +111,26 @@ test("una versión inexistente avisa y deja importar un PDF", async ({ page }) =
 
   await expect(page.getByTestId("cv-import-error")).toContainText("No encontramos esa versión del CV");
   await expect(page.getByTestId("cv-import-browse")).toBeVisible();
+});
+
+test("agrega certificado y foto a un CV histórico sin alterar el original", async ({ page }) => {
+  await page.route("**/api/profile/certificates?**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+    items: [{ id: certificateId, originalFilename: "curso.pdf", mimeType: "application/pdf", fileSizeBytes: 100,
+      status: "ready", certification: { name: "Curso", issuer: "Academia", issueDate: "2025", expirationDate: "", credential: "ABC" },
+      language: null, createdAt: "2026-10-31T12:00:00Z", duplicate: false }],
+    offset: 0, limit: 50, hasMore: false,
+  }) }));
+  await page.route("**/storage/v1/object/profile-photos/**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ Id: "photo", Key: "profile-photos/photo" }) }));
+  const calls = await prepare(page);
+  await page.goto(`/generate?editar=${originalId}#editar-cv`);
+  await expect(page.getByTestId("cv-history-edit-banner")).toBeVisible();
+  await page.getByTestId("cv-import-editor").getByTestId(`certificate-checkbox-${certificateId}`).check();
+  await page.getByTestId("cv-edit-photo").setInputFiles({ name: "foto.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64") });
+  await expect(page.getByTestId("cv-import-save")).toBeVisible();
+  await page.getByTestId("cv-import-save").click();
+  await expect(page.getByTestId("cv-import-status")).toContainText("Nueva versión guardada");
+  expect(calls.saves).toHaveLength(1);
+  expect(calls.saves[0].body.selectedCertificateIds).toEqual([certificateId]);
+  expect((calls.saves[0].body.data as typeof cv).personalInfo.photoPath).toMatch(new RegExp(`^${owner}/[0-9a-f-]+\\.png$`));
+  expect(cv.personalInfo.photoPath).toBeNull();
 });

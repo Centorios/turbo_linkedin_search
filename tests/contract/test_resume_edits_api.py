@@ -50,6 +50,44 @@ def edited_cv() -> dict[str, Any]:
     return cv
 
 
+def test_identical_version_returns_no_changes(setup) -> None:
+    client, _, repository = setup
+    response = client.post(f"/api/resumes/{GENERATED_ID}/versions", headers={**HEADERS, "Idempotency-Key": "00000000-0000-0000-0000-000000000801"}, json={"data": CV})
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "no_changes"
+    assert repository.created == 0
+
+
+def test_selected_certificate_creates_derived_version_without_changing_base(setup, monkeypatch) -> None:
+    client, _, repository = setup
+    certificate_id = "00000000-0000-0000-0000-000000000802"
+
+    class FakeCertificates:
+        def selected(self, user_id, ids):
+            assert user_id == USER_ID and ids == [certificate_id]
+            return [{"id": certificate_id, "certification": {
+                "name": "Curso", "issuer": "Academia", "issueDate": "2025",
+                "expirationDate": "", "credential": "A1",
+            }, "language": None}]
+
+    monkeypatch.setattr("app.services.cv_import.ProfileCertificateService", FakeCertificates)
+    response = client.post(f"/api/resumes/{GENERATED_ID}/versions", headers={**HEADERS, "Idempotency-Key": "00000000-0000-0000-0000-000000000803"}, json={"data": CV, "selectedCertificateIds": [certificate_id]})
+    assert response.status_code == 201
+    assert response.json()["certificateMergeReport"]["addedIds"] == [certificate_id]
+    assert response.json()["data"]["certifications"][0]["credential"] == "A1"
+    assert repository.rows[GENERATED_ID]["data"]["certifications"] == []
+
+
+def test_foreign_photo_path_is_rejected_without_creating_version(setup) -> None:
+    client, _, repository = setup
+    data = edited_cv()
+    data["personalInfo"]["photoPath"] = f"{OTHER_USER_ID}/00000000-0000-0000-0000-000000000005.jpg"
+    response = client.post(f"/api/resumes/{GENERATED_ID}/versions", headers={**HEADERS, "Idempotency-Key": "00000000-0000-0000-0000-000000000804"}, json={"data": data})
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "invalid_photo"
+    assert repository.created == 0
+
+
 class FakeProvider:
     def __init__(self) -> None:
         self.result: dict[str, Any] = {"status": "ready", "proposedCv": edited_cv()}
@@ -91,7 +129,8 @@ class FakeRepository:
         row = self.rows.get(resume_id)
         return row if row and row["user_id"] == user_id else None
 
-    def create_version(self, user_id, source_id, request_id, parent_resume_id, data) -> dict:
+    def create_version(self, user_id, source_id, request_id, parent_resume_id, data,
+                       request_fingerprint=None, certificate_merge_report=None) -> dict:
         for row in self.rows.values():
             if row["user_id"] == user_id and row["request_id"] == request_id:
                 if row["source_id"] != source_id or row["parent_resume_id"] != parent_resume_id:
@@ -99,7 +138,9 @@ class FakeRepository:
                 return row
         self.created += 1
         new_id = f"00000000-0000-0000-0000-{900 + self.created:012d}"
-        row = self._row(new_id, user_id, source_id, parent_resume_id=parent_resume_id, request_id=request_id, data=data)
+        row = self._row(new_id, user_id, source_id, parent_resume_id=parent_resume_id, request_id=request_id,
+                        data=data, request_fingerprint=request_fingerprint,
+                        certificate_merge_report=certificate_merge_report)
         self.rows[new_id] = row
         return row
 

@@ -50,7 +50,7 @@ async def test_assistance_provider_sends_strict_json_prompt_to_backend_endpoint(
     assert request.url.host == "azure.example.test"
     assert request.url.path.endswith("/chat/completions")
     assert payload["response_format"] == {"type": "json_object"}
-    assert payload["temperature"] == 0
+    assert "temperature" not in payload
     assert "Never invent" in payload["messages"][0]["content"]
     assert json.loads(payload["messages"][1]["content"])["sourceText"] == "Coordiné una migración."
     assert result == response_body

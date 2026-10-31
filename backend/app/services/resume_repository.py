@@ -12,7 +12,7 @@ class ResumeRepository:
     def get_by_request(self, user_id: str, request_id: str) -> dict[str, Any] | None:
         response = (
             self.client.table("resumes")
-            .select("id,user_id,request_id,data,created_at")
+            .select("id,user_id,request_id,data,request_fingerprint,certificate_merge_report,created_at")
             .eq("user_id", user_id)
             .eq("request_id", request_id)
             .maybe_single()
@@ -59,11 +59,15 @@ class ResumeRepository:
             raise RuntimeError("Resume history deletion returned no data")
         return bool(response.data)
 
-    def create(self, user_id: str, request_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    def create(self, user_id: str, request_id: str, data: dict[str, Any],
+               request_fingerprint: str | None = None,
+               certificate_merge_report: dict[str, Any] | None = None) -> dict[str, Any]:
         response = (
             self.client.table("resumes")
-            .insert({"user_id": user_id, "request_id": request_id, "data": data})
-            .select("id,user_id,request_id,data,created_at")
+            .insert({"user_id": user_id, "request_id": request_id, "data": data,
+                     "request_fingerprint": request_fingerprint,
+                     "certificate_merge_report": certificate_merge_report})
+            .select("id,user_id,request_id,data,request_fingerprint,certificate_merge_report,created_at")
             .execute()
         )
         if response is None or response.data is None:

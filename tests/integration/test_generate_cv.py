@@ -65,8 +65,8 @@ def test_repeated_request_returns_original_result_without_second_provider_call()
 
     app.dependency_overrides.clear()
     assert first.status_code == 200
-    assert second.status_code == 200
-    assert second.json() == VALID_CV
+    assert second.status_code == 409
+    assert second.json()["detail"]["code"] == "idempotency_conflict"
     assert provider.calls == 1
 
 
@@ -170,7 +170,7 @@ def test_profile_read_failure_stops_provider_and_persistence(generation_with_pro
     assert resume_repository.rows == {}
 
 
-def test_idempotent_result_uses_current_profile_without_second_provider_call(generation_with_profile) -> None:
+def test_idempotent_result_preserves_original_profile_snapshot(generation_with_profile) -> None:
     client, provider, resume_repository, profile_repository = generation_with_profile
     request_id = "00000000-0000-0000-0000-000000000023"
     headers = {"Idempotency-Key": request_id}
@@ -182,12 +182,40 @@ def test_idempotent_result_uses_current_profile_without_second_provider_call(gen
         "email": "",
         "photoPath": PROFILE_PHOTO_PATH,
     }
-    second = client.post("/api/generate-cv", headers=headers, json={"text": "Texto distinto"})
+    second = client.post("/api/generate-cv", headers=headers, json={"text": "Perfil original"})
 
     assert first.status_code == 200
     assert second.status_code == 200
-    assert second.json()["personalInfo"]["fullName"] == "Nombre actualizado"
+    assert second.json()["personalInfo"]["fullName"] == USER_PROFILE["fullName"]
     assert second.json()["personalInfo"]["email"] == USER_PROFILE["email"]
-    assert second.json()["personalInfo"]["photoPath"] == PROFILE_PHOTO_PATH
+    assert second.json()["personalInfo"]["photoPath"] is None
     assert provider.calls == 1
     assert len(resume_repository.rows) == 1
+
+
+def test_selected_certificate_language_and_profile_are_saved_as_snapshot() -> None:
+    certificate_id = "00000000-0000-0000-0000-000000000050"
+
+    class FakeCertificates:
+        def selected(self, user_id, ids):
+            assert ids == [certificate_id]
+            return [{"id": certificate_id, "certification": {
+                "name": "Inglés C1", "issuer": "Instituto", "issueDate": "2025",
+                "expirationDate": "", "credential": "LANG-1",
+            }, "language": {"name": "Inglés", "proficiency": "C1"}}]
+
+    repository = FakeRepository()
+    service = CvGenerationService(provider=FakeProvider(), repository=repository,
+        profile_repository=FakeProfileRepository(USER_PROFILE), certificate_service=FakeCertificates())
+    app.dependency_overrides[require_user_id] = lambda: "user-1"
+    app.dependency_overrides[get_generation_service] = lambda: service
+    client = TestClient(app)
+    headers = {"Idempotency-Key": "00000000-0000-0000-0000-000000000051"}
+    payload = {"text": "CV", "selectedCertificateIds": [certificate_id]}
+    first = client.post("/api/generate-cv", headers=headers, json=payload)
+    second = client.post("/api/generate-cv", headers=headers, json=payload)
+    app.dependency_overrides.clear()
+    assert first.status_code == second.status_code == 200
+    assert first.json() == second.json()
+    assert first.json()["languages"] == [{"name": "Inglés", "proficiency": "C1"}]
+    assert repository.rows[("user-1", headers["Idempotency-Key"])]["data"]["certifications"][0]["credential"] == "LANG-1"

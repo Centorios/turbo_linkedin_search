@@ -153,9 +153,6 @@ export function BasicProfileModal({
         await deleteProfilePhoto(uploadedPath).catch(() => undefined);
         return;
       }
-      if (saved && profile?.photoPath && profile.photoPath !== nextProfile.photoPath) {
-        await deleteProfilePhoto(profile.photoPath).catch(() => undefined);
-      }
       if (saved) onSaved?.();
     } catch (submitError) {
       if (uploadedPath) await deleteProfilePhoto(uploadedPath).catch(() => undefined);

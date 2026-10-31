@@ -243,8 +243,8 @@ def test_generate_then_retrieve_and_retry_without_mutating_snapshot(context):
     generated = client.post("/api/generate-cv", headers=request_headers, json={"text": "Mi trayectoria"})
     assert generated.status_code == 200
     profile["fullName"] = "Nombre actualizado"
-    retried = client.post("/api/generate-cv", headers=request_headers, json={"text": "Otro texto"})
-    assert retried.json()["personalInfo"]["fullName"] == "Nombre actualizado"
+    retried = client.post("/api/generate-cv", headers=request_headers, json={"text": "Mi trayectoria"})
+    assert retried.json()["personalInfo"]["fullName"] == "Nombre original"
     assert len(storage.rows) == provider.calls == 1
     listed = client.get("/api/resumes", headers=auth()).json()
     detail = client.get(f"/api/resumes/{listed['items'][0]['id']}", headers=auth()).json()
