@@ -70,7 +70,7 @@ function AuthPageContent() {
     }
 
     if (mode === "sign-up") {
-      setMessage("Cuenta creada correctamente. Ya podés acceder.");
+      setMessage("Revisá tu correo y abrí el enlace de confirmación para activar tu cuenta. Si no lo encontrás, revisá la carpeta de spam. Después de confirmar tu correo, vas a poder iniciar sesión.");
       setMode("sign-in");
       return;
     }

@@ -90,7 +90,7 @@ describe("Página de acceso social", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Crear cuenta" }));
     fillPassword();
     fireEvent.click(screen.getByTestId("auth-submit"));
-    expect((await screen.findByTestId("auth-message")).textContent).toContain("Cuenta creada");
+    expect((await screen.findByTestId("auth-message")).textContent).toContain("Revisá tu correo y abrí el enlace de confirmación");
     expect(mocks.signup).toHaveBeenCalledWith("ana@example.com", "password");
   });
 
