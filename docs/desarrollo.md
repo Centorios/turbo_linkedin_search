@@ -39,6 +39,8 @@ Abrir `http://localhost:3000/auth`.
 
 > Si ya tenías `frontend/node_modules` de antes, volvé a correr `npm install`: la interfaz
 > ahora usa Tailwind CSS (`tailwindcss` + `@tailwindcss/postcss`) y necesita esa dependencia.
+>
+> Tras actualizar, también necesitás `npm install` por `@mediapipe/tasks-vision` (verificación de expresión de la cámara). No hay pasos manuales: el modelo y los WASM ya están versionados en `frontend/public/mediapipe/` (ver [Verificación de expresión neutra](#verificación-de-expresión-neutra)).
 
 ### Validacion
 
@@ -252,6 +254,18 @@ En **Editar perfil**, la foto se elige con **Buscar** (un archivo JPEG, PNG o We
 - **Usar cámara** aparece solo si el navegador ofrece `navigator.mediaDevices.getUserMedia`, que requiere HTTPS o `localhost`. Si no se da el permiso o no hay cámara, se explica el motivo y sigue disponible **Buscar**.
 - La cámara se apaga siempre (todas las pistas con `stop()`): al tomar la foto, al cancelar, al guardar, al cerrar el diálogo, y también si el permiso llega después de cerrar. Escape cierra la cámara, no el diálogo.
 - Los E2E usan la cámara falsa de Chromium (`--use-fake-device-for-media-stream`), así que no necesitan una cámara real.
+
+### Verificación de expresión neutra
+
+Spec: [specs/017-neutral-expression-photo](../specs/017-neutral-expression-photo/spec.md). Mientras la cámara está abierta, un indicador en vivo guía a la persona; la foto nunca se toma sola. Al tocar **Tomar foto**, si la expresión no es neutra se descarta y se pide repetirla con el motivo (sin límite de intentos y sin opción de usar la foto rechazada); si la verificación no está disponible, la foto se toma igual con un aviso. **Tomar foto** queda deshabilitado mientras la verificación carga (hasta 8 s; luego pasa a "no disponible"). **Buscar** nunca se verifica.
+
+- El análisis corre **en el navegador** con MediaPipe Face Landmarker (`@mediapipe/tasks-vision`, versión exacta `1.2.0`). No hay backend ni API: ningún fotograma sale del dispositivo.
+- Archivos versionados en `frontend/public/mediapipe/`: `face_landmarker.task` (~3,6 MB, modelo `float16`) y `wasm/` (~40 MB, copiados de `node_modules/@mediapipe/tasks-vision/wasm/`). Colaboradores y Vercel no ejecutan ningún script: alcanza con `git pull` y `npm install`.
+- **Al actualizar `@mediapipe/tasks-vision`**: fijar la nueva versión exacta (sin `^`) y volver a copiar `node_modules/@mediapipe/tasks-vision/wasm/*` a `frontend/public/mediapipe/wasm/`. Si los WASM no coinciden con la versión, la verificación falla y la cámara queda "sin verificar". La prueba `frontend/tests/mediapipe-assets.test.ts` (`npm test`) falla si los WASM versionados difieren de los de `node_modules`, y avisa que hay que recopiarlos.
+- Para cambiar el modelo, descargarlo de `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task` a la misma carpeta.
+- Los umbrales de decisión (sonrisa, boca, cejas, ojos, orientación, encuadre) y la ventana de 5 fotogramas viven en un único objeto de constantes de `frontend/app/lib/expression-check.ts`; ver los valores y su justificación en [research.md](../specs/017-neutral-expression-photo/research.md). Para calibrarlos, abrir la página con `?debug-expression=1` (por ejemplo `/generate?debug-expression=1`) imprime en la consola del navegador, cada medio segundo, el valor medido de cada señal.
+- La lógica de decisión (`expression-check.ts`) es pura y no conoce MediaPipe; `face-analyzer.ts` convierte cada fotograma y `use-expression-check.ts` mantiene la ventana de 5 fotogramas (4 de 5 deben pasar) y el indicador en vivo.
+- Pruebas: las de Vitest que abren la cámara mockean `face-analyzer` (verificación "no disponible") o inyectan un analizador falso con la prop `createAnalyzer`. En los E2E (`tests/e2e/profile-photo.spec.ts`) los casos que toman una foto con la cámara falsa bloquean `**/mediapipe/**`; un caso aparte usa el modelo real y comprueba que, sin rostro, la foto se rechaza. La cámara falsa de Chromium no tiene un rostro real, así que la ruta "neutra" solo se prueba con Vitest y a mano.
 
 ## Dictado por voz
 
