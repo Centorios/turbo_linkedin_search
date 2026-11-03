@@ -210,7 +210,9 @@ test.describe("Foto de perfil opcional", () => {
 });
 
 test.describe("Foto de perfil con la cámara", () => {
+  // The fake camera has no face: without MediaPipe the check is unavailable and the photo is taken as before.
   test("toma una foto con la cámara y la guarda como foto de perfil", async ({ page }) => {
+    await page.route("**/mediapipe/**", (route) => route.abort());
     const mocks = await installMocks(page);
     await signIn(page);
 
@@ -233,6 +235,7 @@ test.describe("Foto de perfil con la cámara", () => {
   });
 
   test("cancelar la cámara no agrega foto y Escape no cierra el diálogo", async ({ page }) => {
+    await page.route("**/mediapipe/**", (route) => route.abort());
     const mocks = await installMocks(page);
     await signIn(page);
 
@@ -244,6 +247,39 @@ test.describe("Foto de perfil con la cámara", () => {
     await expect(page.getByRole("dialog", { name: "Completá tu perfil básico" })).toBeVisible();
     await expect(page.getByTestId("profile-photo-preview")).toHaveCount(0);
     expect(mocks.uploads).toHaveLength(0);
+  });
+});
+
+test.describe("Verificación de expresión neutra", () => {
+  test("rechaza la foto cuando la cámara no muestra un rostro y mantiene la cámara abierta", async ({ page }) => {
+    const mocks = await installMocks(page);
+    await signIn(page);
+    await page.getByTestId("profile-photo-camera-open").click();
+
+    // The fake camera shows a test pattern, never a face.
+    await expect(page.getByTestId("camera-expression-status")).toContainText("No te vemos", { timeout: 30_000 });
+    await expect(async () => {
+      await page.getByTestId("camera-take-photo").click();
+      await expect(page.getByTestId("camera-expression-rejection")).toContainText("Sacala de nuevo", { timeout: 1_000 });
+    }).toPass({ timeout: 10_000 });
+
+    await expect(page.getByTestId("profile-photo-camera")).toBeVisible();
+    await expect(page.getByTestId("profile-photo-preview")).toHaveCount(0);
+    expect(mocks.uploads).toHaveLength(0);
+  });
+
+  test("avisa que no se verifica y deja tomar la foto si MediaPipe no carga", async ({ page }) => {
+    await page.route("**/mediapipe/**", (route) => route.abort());
+    await installMocks(page);
+    await signIn(page);
+    await page.getByTestId("profile-photo-camera-open").click();
+
+    await expect(page.getByTestId("camera-expression-unavailable")).toContainText("podés tomar la foto igual");
+    await expect(page.getByTestId("camera-take-photo")).toBeEnabled();
+    await page.getByTestId("camera-take-photo").click();
+
+    await expect(page.getByTestId("profile-photo-camera")).toHaveCount(0);
+    await expect(page.getByTestId("profile-photo-preview")).toBeVisible();
   });
 });
 

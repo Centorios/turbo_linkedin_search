@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertIcon, SpinnerIcon } from "./icons";
+import type { FaceAnalyzerFactory } from "../lib/face-analyzer";
+import { useExpressionCheck } from "../lib/use-expression-check";
+import { AlertIcon, CheckCircleIcon, SpinnerIcon } from "./icons";
 
 type CameraCaptureProps = {
   /** Receives the captured photo as a JPEG file. */
   onCapture: (file: File) => void;
   onClose: () => void;
+  /** Replaces the face analyzer (tests only). */
+  createAnalyzer?: FaceAnalyzerFactory;
 };
 
 const CAPTURE_SIZE = 640;
@@ -36,12 +40,15 @@ export function isCameraSupported(): boolean {
 
 // Live camera preview with a "Tomar foto" button. The camera is always released
 // (every track stopped) when this component unmounts, whatever the reason.
-export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
+export function CameraCapture({ onCapture, onClose, createAnalyzer }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const takeRef = useRef<HTMLButtonElement>(null);
   const regionRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"starting" | "ready" | "error">("starting");
   const [error, setError] = useState<string | null>(null);
+  const [rejection, setRejection] = useState<string | null>(null);
+  const capturingRef = useRef(false);
+  const expression = useExpressionCheck(videoRef, createAnalyzer);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,12 +84,25 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
     if (state === "ready") takeRef.current?.focus();
   }, [state]);
 
+  useEffect(() => {
+    // The rejection is stale once the live indicator says the expression is fine.
+    if (expression.status === "ready") setRejection(null);
+  }, [expression.status]);
+
   function takePhoto() {
+    if (capturingRef.current) return;
     const video = videoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) {
       setError("La cámara todavía no está lista. Esperá un segundo y volvé a intentar.");
       return;
     }
+    // A rejected photo is dropped: the camera stays on and nothing is offered to keep it.
+    const verdict = expression.check();
+    if (verdict.status === "rejected") {
+      setRejection(verdict.message);
+      return;
+    }
+    setRejection(null);
     const canvas = document.createElement("canvas");
     canvas.width = CAPTURE_SIZE;
     canvas.height = CAPTURE_SIZE;
@@ -92,6 +112,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
       return;
     }
     // Centered square crop, not mirrored: the saved photo looks like the real one.
+    capturingRef.current = true;
     const side = Math.min(video.videoWidth, video.videoHeight);
     context.drawImage(
       video,
@@ -107,6 +128,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
     canvas.toBlob(
       (blob) => {
         if (!blob) {
+          capturingRef.current = false;
           setError("No se pudo tomar la foto.");
           return;
         }
@@ -150,6 +172,33 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
           Esperando el permiso de la cámara...
         </p>
       )}
+      {state === "ready" && expression.status !== "unavailable" && (
+        <p
+          role="status"
+          aria-live="polite"
+          data-testid="camera-expression-status"
+          className="flex items-start gap-2 text-body-sm text-text"
+        >
+          {expression.status === "loading" && <SpinnerIcon className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" />}
+          {expression.status === "ready" && <CheckCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-success" />}
+          {expression.status !== "loading" && expression.status !== "ready" && (
+            <AlertIcon className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          )}
+          <span>{expression.message}</span>
+        </p>
+      )}
+      {state === "ready" && expression.status === "unavailable" && (
+        <p role="status" data-testid="camera-expression-unavailable" className="flex items-start gap-2 text-body-sm text-text-muted">
+          <AlertIcon className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <span>{expression.message}</span>
+        </p>
+      )}
+      {rejection && (
+        <p role="alert" data-testid="camera-expression-rejection" className="flex items-start gap-2 text-body-sm text-danger">
+          <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{rejection}</span>
+        </p>
+      )}
       {error && (
         <p role="alert" data-testid="camera-error" className="flex items-start gap-2 text-body-sm text-danger">
           <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
@@ -162,7 +211,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
             ref={takeRef}
             type="button"
             onClick={takePhoto}
-            disabled={state !== "ready"}
+            disabled={state !== "ready" || expression.status === "loading"}
             data-testid="camera-take-photo"
             className="focus-ring rounded-lg bg-primary px-4 py-2 text-body-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-70"
           >

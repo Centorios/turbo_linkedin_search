@@ -2,6 +2,11 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BasicProfileModal } from "../app/components/basic-profile-modal";
 
+// Sin MediaPipe real: la verificación queda "no disponible" y la cámara se usa como antes.
+vi.mock("../app/lib/face-analyzer", () => ({
+  createFaceAnalyzer: () => Promise.reject(new Error("MediaPipe no se carga en pruebas")),
+}));
+
 const mocks = vi.hoisted(() => ({
   upload: vi.fn(),
   remove: vi.fn(),

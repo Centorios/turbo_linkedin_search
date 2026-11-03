@@ -1,6 +1,13 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CAMERA_PHOTO_NAME, CameraCapture, cameraErrorMessage, isCameraSupported } from "../app/components/camera-capture";
+import type { FrameSample } from "../app/lib/expression-check";
+import type { FaceAnalyzer } from "../app/lib/face-analyzer";
+
+// Por defecto la verificación queda "no disponible"; las pruebas de guía inyectan su propio analizador.
+vi.mock("../app/lib/face-analyzer", () => ({
+  createFaceAnalyzer: () => Promise.reject(new Error("MediaPipe no se carga en pruebas")),
+}));
 
 type FakeTrack = { stop: ReturnType<typeof vi.fn> };
 const mocks = vi.hoisted(() => ({ getUserMedia: vi.fn() }));
@@ -141,5 +148,216 @@ describe("Cámara para la foto de perfil", () => {
     Reflect.deleteProperty(navigator, "mediaDevices");
     expect(isCameraSupported()).toBe(false);
     expect(cameraErrorMessage(new Error("raro"))).toBe("No se pudo abrir la cámara.");
+  });
+});
+
+const neutralFrame: FrameSample = {
+  faceCount: 1,
+  blendshapes: {},
+  pose: { yaw: 0, pitch: 0, roll: 0 },
+  box: { cx: 0.5, cy: 0.5, width: 0.5 },
+};
+
+function fakeAnalyzer(initial: FrameSample) {
+  const current = { sample: initial };
+  const analyzer = { analyze: vi.fn(() => current.sample), close: vi.fn() };
+  return { current, analyzer, factory: vi.fn(async () => analyzer as FaceAnalyzer) };
+}
+
+async function openWithAnalyzer(initial: FrameSample) {
+  const { stream, tracks } = fakeStream();
+  mocks.getUserMedia.mockResolvedValue(stream);
+  const fake = fakeAnalyzer(initial);
+  const onCapture = vi.fn();
+  const onClose = vi.fn();
+  const view = render(<CameraCapture onCapture={onCapture} onClose={onClose} createAnalyzer={fake.factory} />);
+  setVideoSize(1280, 720);
+  await waitFor(() => expect((screen.getByTestId("camera-take-photo") as HTMLButtonElement).disabled).toBe(false));
+  return { ...fake, onCapture, onClose, tracks, view };
+}
+
+function expectStatus(text: string) {
+  return waitFor(() => expect(screen.getByTestId("camera-expression-status").textContent).toContain(text));
+}
+
+describe("Guía de expresión en vivo", () => {
+  it("bloquea \"Tomar foto\" hasta que carga la verificación", async () => {
+    mocks.getUserMedia.mockResolvedValue(fakeStream().stream);
+    const fake = fakeAnalyzer(neutralFrame);
+    let load!: () => void;
+    const factory = vi.fn(() => new Promise<FaceAnalyzer>((resolve) => { load = () => resolve(fake.analyzer as FaceAnalyzer); }));
+    render(<CameraCapture onCapture={vi.fn()} onClose={vi.fn()} createAnalyzer={factory} />);
+    setVideoSize(1280, 720);
+
+    await expectStatus("Preparando la verificación de expresión...");
+    expect((screen.getByTestId("camera-take-photo") as HTMLButtonElement).disabled).toBe(true);
+
+    await act(async () => load());
+    await waitFor(() => expect((screen.getByTestId("camera-take-photo") as HTMLButtonElement).disabled).toBe(false));
+  });
+
+  it.each([
+    ["sin rostro", { ...neutralFrame, faceCount: 0, blendshapes: null, pose: null, box: null }, "No te vemos. Ubicá tu rostro frente a la cámara."],
+    ["varios rostros", { ...neutralFrame, faceCount: 2, blendshapes: null, pose: null, box: null }, "Tiene que aparecer una sola persona."],
+    ["sonrisa clara", { ...neutralFrame, blendshapes: { mouthSmileLeft: 0.8, mouthSmileRight: 0.8 } }, "Relajá la sonrisa."],
+    ["cabeza girada", { ...neutralFrame, pose: { yaw: 30, pitch: 0, roll: 0 } }, "Mirá de frente y mantené la cabeza derecha."],
+  ] as [string, FrameSample, string][])("avisa qué corregir: %s", async (_name, frame, message) => {
+    await openWithAnalyzer(frame);
+
+    await expectStatus(message);
+  });
+
+  it("muestra \"Listo, expresión neutra.\" tras unos fotogramas válidos y vuelve a avisar si cambia", async () => {
+    const { current } = await openWithAnalyzer({ ...neutralFrame, blendshapes: { mouthSmileLeft: 0.8, mouthSmileRight: 0.8 } });
+    await expectStatus("Relajá la sonrisa.");
+
+    current.sample = neutralFrame;
+    await expectStatus("Listo, expresión neutra.");
+  });
+
+  it("nunca toma la foto sola, ni siquiera cuando todo está listo", async () => {
+    const { onCapture, onClose } = await openWithAnalyzer(neutralFrame);
+    await expectStatus("Listo, expresión neutra.");
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(onCapture).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect((screen.getByTestId("camera-take-photo") as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("el indicador es un estado anunciable y no depende solo del color", async () => {
+    await openWithAnalyzer(neutralFrame);
+    await expectStatus("Listo, expresión neutra.");
+
+    const status = screen.getByTestId("camera-expression-status");
+    expect(status.getAttribute("role")).toBe("status");
+    expect(status.getAttribute("aria-live")).toBe("polite");
+  });
+});
+
+const smilingFrame: FrameSample = { ...neutralFrame, blendshapes: { mouthSmileLeft: 0.8, mouthSmileRight: 0.8 } };
+const noFaceFrame: FrameSample = { faceCount: 0, blendshapes: null, pose: null, box: null };
+const take = () => fireEvent.click(screen.getByTestId("camera-take-photo"));
+
+describe("Verificación al tomar la foto", () => {
+  it("una foto neutra se acepta: entrega el JPEG y cierra la cámara", async () => {
+    const { onCapture, onClose } = await openWithAnalyzer(neutralFrame);
+    await expectStatus("Listo, expresión neutra.");
+
+    take();
+
+    const file = onCapture.mock.calls[0][0] as File;
+    expect(file.name).toBe(CAMERA_PHOTO_NAME);
+    expect(file.type).toBe("image/jpeg");
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("camera-expression-rejection")).toBeNull();
+  });
+
+  it("una sonrisa muy leve se acepta", async () => {
+    const { onCapture } = await openWithAnalyzer({ ...neutralFrame, blendshapes: { mouthSmileLeft: 0.2, mouthSmileRight: 0.2 } });
+    await expectStatus("Listo, expresión neutra.");
+
+    take();
+
+    expect(onCapture).toHaveBeenCalledTimes(1);
+  });
+
+  it("una sonrisa clara se rechaza: pide sacarla de nuevo, indica qué mejorar y deja la cámara activa", async () => {
+    const { onCapture, onClose, tracks } = await openWithAnalyzer(smilingFrame);
+
+    take();
+
+    expect((await screen.findByTestId("camera-expression-rejection")).textContent).toBe(
+      "La foto no quedó neutra. Sacala de nuevo: Relajá la sonrisa.",
+    );
+    expect(screen.getByTestId("camera-expression-rejection").getAttribute("role")).toBe("alert");
+    expect(onCapture).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByTestId("profile-photo-camera")).toBeTruthy();
+    tracks.forEach((track) => expect(track.stop).not.toHaveBeenCalled());
+  });
+
+  it("si no puede evaluar el rostro rechaza y pide más luz y rostro completo", async () => {
+    const { analyzer, onCapture } = await openWithAnalyzer(noFaceFrame);
+    await waitFor(() => expect(analyzer.analyze.mock.calls.length).toBeGreaterThanOrEqual(3));
+
+    take();
+
+    expect((await screen.findByTestId("camera-expression-rejection")).textContent).toContain("Buscá más luz y mostralo completo.");
+    expect(onCapture).not.toHaveBeenCalled();
+  });
+
+  it("tras 5 rechazos seguidos nunca ofrece usar la foto rechazada", async () => {
+    const { onCapture } = await openWithAnalyzer(smilingFrame);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      take();
+      expect(await screen.findByTestId("camera-expression-rejection")).toBeTruthy();
+    }
+
+    expect(onCapture).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual(["Tomar foto", "Cancelar"]);
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("toques rápidos no generan capturas ni mensajes duplicados", async () => {
+    const { onCapture, onClose } = await openWithAnalyzer(neutralFrame);
+    await expectStatus("Listo, expresión neutra.");
+
+    take();
+    take();
+
+    expect(onCapture).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("repetir un rechazo muestra un solo mensaje", async () => {
+    await openWithAnalyzer(smilingFrame);
+
+    take();
+    take();
+
+    expect(await screen.findAllByTestId("camera-expression-rejection")).toHaveLength(1);
+  });
+
+  it("el mensaje de rechazo desaparece cuando la expresión vuelve a estar lista", async () => {
+    const { current } = await openWithAnalyzer(smilingFrame);
+    take();
+    expect(await screen.findByTestId("camera-expression-rejection")).toBeTruthy();
+
+    current.sample = neutralFrame;
+
+    await waitFor(() => expect(screen.queryByTestId("camera-expression-rejection")).toBeNull());
+    await expectStatus("Listo, expresión neutra.");
+  });
+});
+
+describe("Verificación no disponible", () => {
+  it("avisa que no se verificará y permite tomar la foto igual", async () => {
+    mocks.getUserMedia.mockResolvedValue(fakeStream().stream);
+    const onCapture = vi.fn();
+    const failing = vi.fn(async () => { throw new Error("sin wasm"); });
+    render(<CameraCapture onCapture={onCapture} onClose={vi.fn()} createAnalyzer={failing} />);
+    setVideoSize(1280, 720);
+
+    expect((await screen.findByTestId("camera-expression-unavailable")).textContent).toContain(
+      "No pudimos verificar la expresión; podés tomar la foto igual.",
+    );
+    expect(screen.queryByTestId("camera-expression-status")).toBeNull();
+    await waitFor(() => expect((screen.getByTestId("camera-take-photo") as HTMLButtonElement).disabled).toBe(false));
+
+    take();
+
+    expect(onCapture).toHaveBeenCalledTimes(1);
+  });
+
+  it("al desmontar apaga la cámara y libera el analizador", async () => {
+    const { analyzer, tracks, view } = await openWithAnalyzer(neutralFrame);
+
+    view.unmount();
+
+    expect(analyzer.close).toHaveBeenCalledTimes(1);
+    tracks.forEach((track) => expect(track.stop).toHaveBeenCalled());
   });
 });
