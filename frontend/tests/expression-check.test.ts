@@ -27,21 +27,35 @@ describe("evaluateFrame", () => {
     expect(evaluateFrame(sample())).toEqual({ ok: true, issue: null });
   });
 
-  it("acepta una sonrisa muy leve y rechaza una clara (umbral de sonrisa)", () => {
-    expect(evaluateFrame(sample({ shapes: smile(0.2) })).ok).toBe(true);
+  it("acepta hasta el umbral de sonrisa y rechaza valores superiores", () => {
+    expect(evaluateFrame(sample({ shapes: smile(0.04) })).ok).toBe(true);
     expect(evaluateFrame(sample({ shapes: smile(EXPRESSION_THRESHOLDS.smile) })).ok).toBe(true);
-    expect(evaluateFrame(sample({ shapes: smile(0.31) }))).toEqual({ ok: false, issue: "smiling" });
+    expect(evaluateFrame(sample({ shapes: smile(0.06) }))).toEqual({ ok: false, issue: "smiling" });
+    expect(evaluateFrame(sample({ shapes: { mouthSmileLeft: 0.1, mouthSmileRight: 0 } })).ok).toBe(true);
+    expect(evaluateFrame(sample({ shapes: { mouthSmileLeft: 0.12, mouthSmileRight: 0 } })).issue).toBe("smiling");
   });
 
   it("rechaza boca abierta, boca deformada, cejas y ojos fuera de rango", () => {
     expect(evaluateFrame(sample({ shapes: { jawOpen: 0.26 } })).issue).toBe("mouth-open");
     expect(evaluateFrame(sample({ shapes: { jawOpen: 0.2 } })).ok).toBe(true);
-    expect(evaluateFrame(sample({ shapes: { mouthPucker: 0.46 } })).issue).toBe("mouth-open");
+    expect(evaluateFrame(sample({ shapes: { mouthPucker: 0.9 } })).ok).toBe(true);
+    expect(evaluateFrame(sample({ shapes: { mouthPucker: 0.91 } })).issue).toBe("mouth-open");
+    expect(evaluateFrame(sample({ shapes: { mouthFunnel: 0.9 } })).ok).toBe(true);
+    expect(evaluateFrame(sample({ shapes: { mouthFunnel: 0.91 } })).issue).toBe("mouth-open");
     expect(evaluateFrame(sample({ shapes: { browInnerUp: 0.36 } })).issue).toBe("brows-raised");
     expect(evaluateFrame(sample({ shapes: { browDownLeft: 0.4, browDownRight: 0.4 } })).issue).toBe("frowning");
     expect(evaluateFrame(sample({ shapes: { browDownLeft: 0.3, browDownRight: 0.3 } })).ok).toBe(true);
     expect(evaluateFrame(sample({ shapes: { eyeBlinkLeft: 0.6, eyeBlinkRight: 0.6 } })).issue).toBe("eyes-closed");
     expect(evaluateFrame(sample({ shapes: { eyeWideLeft: 0.5, eyeWideRight: 0.5 } })).issue).toBe("eyes-wide");
+  });
+
+  it("rechaza una separación de labios superior a 0.05 cuando está disponible", () => {
+    expect(EXPRESSION_THRESHOLDS.lipOpening).toBe(0.05);
+    expect(evaluateFrame(sample({ lipOpening: 0.049 })).ok).toBe(true);
+    expect(evaluateFrame(sample({ lipOpening: 0.05 })).ok).toBe(true);
+    expect(evaluateFrame(sample({ lipOpening: 0.051 })).issue).toBe("mouth-open");
+    expect(evaluateFrame(sample({ lipOpening: null })).ok).toBe(true);
+    expect(evaluateFrame(sample()).ok).toBe(true);
   });
 
   it("rechaza cabeza girada o ladeada", () => {
@@ -96,8 +110,14 @@ describe("summarizeWindow", () => {
   });
 
   it("acepta una sonrisa muy leve sostenida", () => {
-    const slight = () => sample({ shapes: smile(0.2) });
+    const slight = () => sample({ shapes: smile(0.05) });
     expect(summarizeWindow([slight(), slight(), slight(), slight(), slight()]).status).toBe("neutral");
+  });
+
+  it("rechaza una separación de labios sostenida y tolera un fotograma aislado", () => {
+    const open = () => sample({ lipOpening: 0.051 });
+    expect(summarizeWindow([open(), open(), neutral(), neutral(), neutral()]).issue).toBe("mouth-open");
+    expect(summarizeWindow([open(), neutral(), neutral(), neutral(), neutral()]).status).toBe("neutral");
   });
 
   it("marca no evaluable cuando 2 o más fotogramas no tienen rostro", () => {

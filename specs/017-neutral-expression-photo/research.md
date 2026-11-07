@@ -12,9 +12,10 @@ Constantes en un único objeto `EXPRESSION_THRESHOLDS`, a calibrar con fotos rea
 
 | Señal | Cálculo | Se rechaza si |
 |-------|---------|---------------|
-| Sonrisa | promedio `mouthSmileLeft/Right` | > 0.30 |
+| Sonrisa | promedio `mouthSmileLeft/Right` | > 0.05 |
 | Boca abierta | `jawOpen` | > 0.25 |
-| Boca deformada | máx(`mouthFunnel`, `mouthPucker`) | > 0.45 |
+| Separación de labios | `lipOpening`, distancia entre labios interiores relativa al ancho de la boca | > 0.05, cuando está disponible |
+| Boca deformada | máx(`mouthFunnel`, `mouthPucker`) | > 0.90 |
 | Cejas levantadas | máx(`browInnerUp`, prom. `browOuterUpLeft/Right`) | > 0.35 |
 | Ceño | prom. `browDownLeft/Right` | > 0.35 |
 | Ojos cerrados | prom. `eyeBlinkLeft/Right` | > 0.50 |
@@ -26,8 +27,10 @@ Constantes en un único objeto `EXPRESSION_THRESHOLDS`, a calibrar con fotos rea
 | Centrado | centro del bbox vs. centro del cuadro | > 20 % |
 | Rostros | `faceLandmarks.length` | 0 o ≥ 2 |
 
-- **Rationale**: 0.30 deja pasar la sonrisa muy leve (clarificación Q2) y rechaza la clara; ángulos de 10–15° son tolerantes.
+- **Rationale**: el umbral de sonrisa se redujo a 0.05 por solicitud del usuario; acepta hasta ese valor y rechaza promedios superiores. Los ángulos de 10–15° son tolerantes.
 - **Calibración**: ~20 fotos (neutras, sonrisa leve/amplia, boca abierta, ojos cerrados) con distintas personas y luces; objetivo SC-003.
+- **Ajuste posterior**: se elevó `mouthShape` a 0.90 para tolerar señales altas con labios cerrados. Esta señal representa la forma de los labios y por sí sola no determina si la boca está abierta; pueden persistir falsos positivos por encima del umbral.
+- **Separación de labios**: se agregó el umbral 0.05 por solicitud del usuario, conservando las reglas de `jawOpen` y `mouthShape`. Si la medición no está disponible, se mantienen las demás señales. En una prueba previa se observó 0.003 con la boca abierta y cerrada, por lo que su efectividad requiere validación con cámara real.
 
 ## R3. Ventana de fotogramas e histéresis
 
