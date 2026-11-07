@@ -10,6 +10,8 @@ export type FrameSample = {
   pose: { yaw: number; pitch: number; roll: number } | null;
   /** Face box relative to the square area that is saved (0–1, center and width). */
   box: { cx: number; cy: number; width: number } | null;
+  /** Distance between inner lips relative to mouth width, when landmarks are available. */
+  lipOpening?: number | null;
 };
 
 export type ExpressionIssue =
@@ -42,9 +44,10 @@ export type LiveStatus = "loading" | "unavailable" | "no-face" | "multiple-faces
 // Adjusted after the first test with a real camera: resting mouth tripped `jawOpen`/`mouthShape`,
 // an angry frown and large head turns were accepted.
 export const EXPRESSION_THRESHOLDS = {
-  smile: 0.3,
+  smile: 0.05,
   jawOpen: 0.25,
-  mouthShape: 0.45,
+  mouthShape: 0.9,
+  lipOpening: 0.05,
   browsRaised: 0.35,
   browsDown: 0.35,
   eyesClosed: 0.5,
@@ -173,7 +176,11 @@ export function evaluateFrame(sample: FrameSample): FrameAssessment {
   if (Math.abs(m.roll) > t.roll) issues.push("head-tilted");
   if (m.eyesClosed > t.eyesClosed) issues.push("eyes-closed");
   if (m.eyesWide > t.eyesWide) issues.push("eyes-wide");
-  if (m.jawOpen > t.jawOpen || m.mouthShape > t.mouthShape) issues.push("mouth-open");
+  if (
+    m.jawOpen > t.jawOpen ||
+    m.mouthShape > t.mouthShape ||
+    (sample.lipOpening != null && sample.lipOpening > t.lipOpening)
+  ) issues.push("mouth-open");
   if (m.smile > t.smile) issues.push("smiling");
   if (m.browsRaised > t.browsRaised) issues.push("brows-raised");
   if (m.browsDown > t.browsDown) issues.push("frowning");

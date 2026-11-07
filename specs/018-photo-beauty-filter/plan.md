@@ -6,13 +6,13 @@
 
 ## Summary
 
-Al tomar una foto desde la cámara, la interfaz mostrará una revisión con la imagen original y una alternativa de suavizado sutil de piel. El procesamiento se realizará localmente, reutilizando el Face Landmarker y los recursos de MediaPipe ya incluidos, junto con Canvas 2D; el usuario elegirá una imagen antes de que el flujo existente la acepte para guardar. Si el procesamiento no está disponible o falla, la foto original seguirá siendo seleccionable.
+Al tomar una foto desde la cámara, la interfaz mostrará una revisión original y otra con suavizado sutil de piel, con un interruptor de fondo desenfocado activado inicialmente. La segmentación y el procesamiento se realizan localmente; el usuario elige una imagen antes de guardarla. Si falla la segmentación, las alternativas sin desenfoque disponibles siguen siendo seleccionables con un aviso.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 5.7, React 19 y Next.js 15 (frontend existente).
 
-**Primary Dependencies**: `@mediapipe/tasks-vision` ya instalado; Canvas 2D nativo del navegador. No se agregan dependencias.
+**Primary Dependencies**: `@mediapipe/tasks-vision` ya instalado; modelos locales Face Landmarker y Selfie Segmenter; Canvas 2D nativo del navegador. No se agregan paquetes.
 
 **Storage**: Sin cambios de almacenamiento. Las alternativas son temporales en memoria; solo la elegida continúa al flujo existente de guardado de perfil.
 
@@ -24,9 +24,9 @@ Al tomar una foto desde la cámara, la interfaz mostrará una revisión con la i
 
 **Performance Goals**: Generar la alternativa una sola vez por captura y reutilizar el resultado durante la revisión. Mantener la interfaz receptiva; ante demora o error de análisis, permitir seleccionar la original sin bloquear el flujo.
 
-**Constraints**: Una imagen cuadrada de 640×640; un único efecto fijo y sutil; no modificar rasgos ni difuminar ojos, cejas o boca; no enviar imágenes a servicios externos; no cambiar validación ni persistencia existentes.
+**Constraints**: Una imagen cuadrada de 640×640; desenfoque de fondo opcional de intensidad fija; suavizado de piel fijo y sutil; mantener nítida a la persona y no modificar rasgos; no enviar imágenes a servicios externos; no cambiar validación ni persistencia existentes.
 
-**Scale/Scope**: Una captura temporal y hasta dos versiones por revisión de foto de perfil; sin cambios de backend, base de datos, APIs o contrato de guardado.
+**Scale/Scope**: Una captura temporal y hasta tres versiones derivadas por revisión de foto de perfil; sin cambios de backend, base de datos, APIs o contrato de guardado.
 
 ## Constitution Check
 
@@ -65,9 +65,12 @@ frontend/
 │   │   ├── camera-capture.tsx       # Captura y revisión/selección de versiones
 │   │   └── basic-profile-modal.tsx   # Integración con la selección de foto existente
 │   └── lib/
+│       ├── background-analyzer.ts   # Segmentación local de persona/fondo
+│       ├── background-blur.ts       # Composición del fondo desenfocado
 │       ├── face-analyzer.ts         # Acceso a landmarks locales
 │       └── use-expression-check.ts  # Reutilización segura de análisis existente
 └── tests/
+    ├── background-blur.test.ts      # Máscara y composición local
     └── camera-capture.test.tsx      # Estados, selección y fallback
 ```
 
@@ -79,7 +82,7 @@ frontend/
 |---|---|---|
 | Separación entre frontend, backend, almacenamiento y servicios externos | PASS | La transformación ocurre en el frontend; no se agregan llamadas ni contratos de red. |
 | Datos profesionales y foto privados | PASS | La captura y ambas alternativas permanecen en memoria del navegador hasta que se elige una; el guardado sigue siendo explícito. |
-| Complejidad adicional justificada | PASS | La segmentación local se limita al rostro detectado para no suavizar ojos, cejas, boca ni fondo; no hay controles, filtros adicionales ni servicio externo. |
+| Complejidad adicional justificada | PASS | El suavizado local se limita al rostro detectado para proteger ojos, cejas, boca y fondo; solo se agrega el control de desenfoque, sin filtros adicionales ni servicio externo. |
 | Pruebas de comportamiento e identificadores estables | PASS | Los estados accesibles y controles se cubren con Vitest/Testing Library y `data-testid` cuando corresponda. |
 
 **Post-design gate**: PASS. No se identifican violaciones que requieran excepciones.

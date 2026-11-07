@@ -61,6 +61,20 @@ function toBox(landmarks: Landmarks | undefined, video: HTMLVideoElement): Frame
   return { cx: (minX + maxX) / 2, cy: (Math.min(...ys) + Math.max(...ys)) / 2, width: maxX - minX };
 }
 
+function measureLipOpening(landmarks: Landmarks | undefined, video: HTMLVideoElement): number | null {
+  const upper = landmarks?.[13];
+  const lower = landmarks?.[14];
+  const left = landmarks?.[61];
+  const right = landmarks?.[291];
+  if (!upper || !lower || !left || !right) return null;
+
+  const distance = (a: NormalizedLandmark, b: NormalizedLandmark) =>
+    Math.hypot((a.x - b.x) * video.videoWidth, (a.y - b.y) * video.videoHeight);
+  const mouthWidth = distance(left, right);
+  const lipGap = distance(upper, lower);
+  return Number.isFinite(mouthWidth) && mouthWidth > 0 && Number.isFinite(lipGap) ? lipGap / mouthWidth : null;
+}
+
 async function createLandmarker(delegate: "GPU" | "CPU", runningMode: "VIDEO" | "IMAGE" = "VIDEO"): Promise<FaceLandmarker> {
   // Dynamic import keeps MediaPipe out of the server render and the initial bundle.
   const { FaceLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
@@ -187,6 +201,7 @@ export const createFaceAnalyzer: FaceAnalyzerFactory = async () => {
         blendshapes: toBlendshapes(result),
         pose: toPose(result.facialTransformationMatrixes[0]),
         box: toBox(result.faceLandmarks[0], video),
+        lipOpening: measureLipOpening(result.faceLandmarks[0], video),
       };
     },
     close() {

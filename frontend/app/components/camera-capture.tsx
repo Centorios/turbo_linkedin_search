@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { analyzePhotoForBackground } from "../lib/background-analyzer";
+import { createBackgroundBlurredCanvas } from "../lib/background-blur";
 import { analyzePhotoForSkin, type FaceAnalyzerFactory } from "../lib/face-analyzer";
-import { createSkinSmoothedPhoto, type SkinContours } from "../lib/skin-smoothing";
+import { canvasToJpeg, createSkinSmoothedPhoto, type SkinContours } from "../lib/skin-smoothing";
 import { useExpressionCheck } from "../lib/use-expression-check";
 import { AlertIcon, CheckCircleIcon, SpinnerIcon } from "./icons";
 
@@ -10,17 +12,27 @@ type CameraCaptureProps = {
   onCapture: (file: File) => void;
   onClose: () => void;
   createAnalyzer?: FaceAnalyzerFactory;
+  createPersonMask?: typeof analyzePhotoForBackground;
   createSkinContours?: (image: HTMLCanvasElement) => Promise<SkinContours | null>;
 };
 
 type CapturedPhoto = { file: File; canvas: HTMLCanvasElement; previewUrl: string };
+type PhotoVersion = { file: File; url: string };
 type PhotoReview =
   | { status: "processing" }
-  | { status: "ready"; enhancedFile: File; enhancedUrl: string }
-  | { status: "original-only"; error: string };
+  | {
+      status: "ready";
+      background: PhotoVersion | null;
+      enhanced: PhotoVersion | null;
+      enhancedBackground: PhotoVersion | null;
+      backgroundError: string | null;
+      skinError: string | null;
+      enhancedBackgroundError: string | null;
+    };
 
 const CAPTURE_SIZE = 640;
 export const CAMERA_PHOTO_NAME = "foto-camara.jpg";
+export const CAMERA_BACKGROUND_BLURRED_PHOTO_NAME = "foto-camara-fondo-desenfocado.jpg";
 
 export function cameraErrorMessage(error: unknown): string {
   const name = error instanceof DOMException || error instanceof Error ? error.name : "";
@@ -244,9 +256,11 @@ function CameraSession({
   );
 }
 
-export function CameraCapture({ onCapture, onClose, createAnalyzer, createSkinContours }: CameraCaptureProps) {
+export function CameraCapture({ onCapture, onClose, createAnalyzer, createPersonMask, createSkinContours }: CameraCaptureProps) {
   const [captured, setCaptured] = useState<CapturedPhoto | null>(null);
   const [review, setReview] = useState<PhotoReview | null>(null);
+  const [backgroundEnabled, setBackgroundEnabled] = useState(true);
+  const [mobilePreview, setMobilePreview] = useState<"original" | "beautified">("original");
   const [sessionKey, setSessionKey] = useState(0);
 
   useEffect(() => {
@@ -255,40 +269,70 @@ export function CameraCapture({ onCapture, onClose, createAnalyzer, createSkinCo
       return;
     }
     let cancelled = false;
-    let enhancedUrl: string | null = null;
+    const urls: string[] = [];
+    function makeVersion(blob: Blob, name: string): PhotoVersion {
+      const file = new File([blob], name, { type: "image/jpeg" });
+      const url = URL.createObjectURL(file);
+      urls.push(url);
+      return { file, url };
+    }
     setReview({ status: "processing" });
 
     void (async () => {
+      let background: PhotoVersion | null = null;
+      let backgroundCanvas: HTMLCanvasElement | null = null;
+      let enhanced: PhotoVersion | null = null;
+      let enhancedBackground: PhotoVersion | null = null;
+      let backgroundError: string | null = null;
+      let skinError: string | null = null;
+      let enhancedBackgroundError: string | null = null;
+      try {
+        const personMask = await (createPersonMask ?? analyzePhotoForBackground)(captured.canvas);
+        if (cancelled) return;
+        backgroundCanvas = createBackgroundBlurredCanvas(captured.canvas, personMask);
+        const backgroundBlob = await canvasToJpeg(backgroundCanvas);
+        if (cancelled) return;
+        background = makeVersion(backgroundBlob, CAMERA_BACKGROUND_BLURRED_PHOTO_NAME);
+      } catch {
+        backgroundCanvas = null;
+        backgroundError = "No pudimos desenfocar el fondo. Podés usar la foto sin desenfoque o tomar otra.";
+      }
+      if (cancelled) return;
       try {
         const contours = await (createSkinContours ?? analyzePhotoForSkin)(captured.canvas);
+        if (cancelled) return;
         if (!contours) throw new Error("No se detectó un rostro único con contornos válidos.");
-        const blob = await createSkinSmoothedPhoto(captured.canvas, contours);
-        const enhancedFile = new File([blob], "foto-camara-embellecida.jpg", { type: "image/jpeg" });
-        enhancedUrl = URL.createObjectURL(enhancedFile);
-        if (cancelled) {
-          URL.revokeObjectURL(enhancedUrl);
-          enhancedUrl = null;
-          return;
+        const enhancedBlob = await createSkinSmoothedPhoto(captured.canvas, contours);
+        if (cancelled) return;
+        enhanced = makeVersion(enhancedBlob, "foto-camara-embellecida-sin-desenfoque.jpg");
+        if (backgroundCanvas) {
+          try {
+            const blurredEnhancedBlob = await createSkinSmoothedPhoto(backgroundCanvas, contours);
+            if (cancelled) return;
+            enhancedBackground = makeVersion(blurredEnhancedBlob, "foto-camara-embellecida.jpg");
+          } catch {
+            enhancedBackgroundError = "No pudimos suavizar la piel con el fondo desenfocado. Desactivá el desenfoque para usar la foto embellecida.";
+          }
         }
-        setReview({ status: "ready", enhancedFile, enhancedUrl });
       } catch {
-        if (!cancelled) {
-          setReview({
-            status: "original-only",
-            error: "No pudimos aplicar el suavizado. Podés usar la foto original o tomar otra.",
-          });
-        }
+        skinError = "No pudimos suavizar la piel. Podés usar la foto original o tomar otra.";
       }
+      if (cancelled) return;
+      if (!background) setBackgroundEnabled(false);
+      setReview({ status: "ready", background, enhanced, enhancedBackground, backgroundError, skinError, enhancedBackgroundError });
     })();
 
     return () => {
       cancelled = true;
       URL.revokeObjectURL(captured.previewUrl);
-      if (enhancedUrl) URL.revokeObjectURL(enhancedUrl);
+      urls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [captured, createSkinContours]);
+  }, [captured, createPersonMask, createSkinContours]);
 
   function capturePhoto(file: File, canvas: HTMLCanvasElement) {
+    setMobilePreview("original");
+    setBackgroundEnabled(true);
+    setReview({ status: "processing" });
     setCaptured({ file, canvas, previewUrl: URL.createObjectURL(file) });
   }
 
@@ -315,60 +359,118 @@ export function CameraCapture({ onCapture, onClose, createAnalyzer, createSkinCo
     return <CameraSession key={sessionKey} onPhoto={capturePhoto} onClose={onClose} createAnalyzer={createAnalyzer} />;
   }
 
+  const readyReview = review?.status === "ready" ? review : null;
+  const backgroundVersion = backgroundEnabled ? readyReview?.background : null;
+  const useBackground = !!backgroundVersion;
+  const backgroundChecked = review?.status === "processing" ? backgroundEnabled : useBackground;
+  const originalPreviewUrl = backgroundVersion?.url ?? captured.previewUrl;
+  const originalLabel = backgroundVersion ? "Original con fondo desenfocado" : "Original";
+  const originalFile = backgroundVersion?.file ?? captured.file;
+  const enhancedVersion = useBackground ? readyReview?.enhancedBackground : readyReview?.enhanced;
+  const visibleMobilePreview = mobilePreview === "beautified" && enhancedVersion ? "beautified" : "original";
+
   return (
     <div
       role="group"
       aria-label="Elegir foto de perfil"
       data-testid="camera-photo-review"
-      className="mt-3 flex flex-col items-start gap-3 rounded-xl border border-border bg-subtle p-4"
+      className="mt-3 flex w-full flex-col items-center gap-4 rounded-xl border border-border bg-subtle p-4 sm:p-6"
     >
-      <div className="flex flex-wrap gap-4">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={backgroundChecked}
+        disabled={!readyReview?.background}
+        onClick={() => setBackgroundEnabled((current) => !current)}
+        data-testid="camera-background-toggle"
+        className="focus-ring flex items-center gap-3 rounded-lg text-body-sm font-semibold text-text disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <span>Desenfocar fondo</span>
+        <span aria-hidden="true" className={`relative h-6 w-11 rounded-full transition-colors ${backgroundChecked ? "bg-primary" : "bg-text-muted"}`}>
+          <span className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${backgroundChecked ? "translate-x-5" : "translate-x-0.5"}`} />
+        </span>
+      </button>
+      {enhancedVersion && (
+        <div className="flex w-full max-w-sm gap-2 md:hidden" role="group" aria-label="Elegir vista previa">
+          <button
+            type="button"
+            aria-pressed={visibleMobilePreview === "original"}
+            onClick={() => setMobilePreview("original")}
+            data-testid="camera-preview-original"
+            className="focus-ring flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-body-sm font-semibold text-text aria-pressed:border-primary aria-pressed:text-primary"
+          >
+            Original
+          </button>
+          <button
+            type="button"
+            aria-pressed={visibleMobilePreview === "beautified"}
+            onClick={() => setMobilePreview("beautified")}
+            data-testid="camera-preview-beautified"
+            className="focus-ring flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-body-sm font-semibold text-text aria-pressed:border-primary aria-pressed:text-primary"
+          >
+            Embellecida
+          </button>
+        </div>
+      )}
+      <figure className="m-0 flex w-full flex-col items-center gap-2 md:hidden">
+        <img
+          src={visibleMobilePreview === "beautified" && enhancedVersion ? enhancedVersion.url : originalPreviewUrl}
+          alt={`Vista previa ${visibleMobilePreview === "beautified" ? "embellecida" : originalLabel.toLowerCase()}`}
+          data-testid="camera-mobile-preview-image"
+          className="aspect-square w-full max-w-sm rounded-xl border border-border object-cover"
+        />
+        <figcaption className="text-body-sm font-semibold text-text">
+          {visibleMobilePreview === "beautified" ? "Embellecida" : originalLabel}
+        </figcaption>
+      </figure>
+      <div className="hidden w-full grid-cols-2 justify-items-center gap-6 md:grid">
         <figure className="m-0">
           <img
-            src={captured.previewUrl}
-            alt="Foto original"
+            src={originalPreviewUrl}
+            alt={originalLabel}
             data-testid="camera-photo-original"
-            className="h-36 w-36 rounded-xl border border-border object-cover"
+            className="aspect-square w-full max-w-[420px] rounded-xl border border-border object-cover"
           />
-          <figcaption className="mt-1 text-body-sm text-text">Original</figcaption>
+          <figcaption className="mt-2 text-body-sm font-semibold text-text">{originalLabel}</figcaption>
         </figure>
-        {review?.status === "ready" && (
+        {enhancedVersion && (
           <figure className="m-0">
             <img
-              src={review.enhancedUrl}
+              src={enhancedVersion.url}
               alt="Foto embellecida"
               data-testid="camera-photo-beautified"
-              className="h-36 w-36 rounded-xl border border-border object-cover"
+              className="aspect-square w-full max-w-[420px] rounded-xl border border-border object-cover"
             />
-            <figcaption className="mt-1 text-body-sm text-text">Embellecida</figcaption>
+            <figcaption className="mt-2 text-body-sm font-semibold text-text">Embellecida</figcaption>
           </figure>
         )}
       </div>
       {review?.status === "processing" && (
         <p role="status" aria-live="polite" data-testid="camera-skin-filter-processing" className="flex items-center gap-2 text-body-sm text-text-muted">
           <SpinnerIcon className="h-4 w-4" />
-          Preparando la versión embellecida...
+          Desenfocando el fondo y preparando la versión embellecida...
         </p>
       )}
-      {review?.status === "original-only" && (
+      {(readyReview?.backgroundError || readyReview?.skinError || (useBackground && readyReview?.enhancedBackgroundError)) && (
         <p role="alert" data-testid="camera-skin-filter-error" className="flex items-start gap-2 text-body-sm text-warning">
           <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{review.error}</span>
+          <span>{[readyReview?.backgroundError, readyReview?.skinError, useBackground && readyReview?.enhancedBackgroundError].filter(Boolean).join(" ")}</span>
         </p>
       )}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => selectPhoto(captured.file)}
+          onClick={() => selectPhoto(originalFile)}
+          disabled={review?.status === "processing"}
           data-testid="camera-use-original"
-          className="focus-ring rounded-lg border border-border bg-surface px-4 py-2 text-body-sm font-semibold text-text hover:bg-subtle"
+          className="focus-ring rounded-lg border border-border bg-surface px-4 py-2 text-body-sm font-semibold text-text hover:bg-subtle disabled:cursor-wait disabled:opacity-60"
         >
           Usar original
         </button>
-        {review?.status === "ready" && (
+        {enhancedVersion && (
           <button
             type="button"
-            onClick={() => selectPhoto(review.enhancedFile)}
+            onClick={() => selectPhoto(enhancedVersion.file)}
             data-testid="camera-use-beautified"
             className="focus-ring rounded-lg bg-primary px-4 py-2 text-body-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover"
           >

@@ -87,7 +87,12 @@ export function useExpressionCheck(
       // Calibration aid: open the page with ?debug-expression=1 to see the measured values in the console.
       if (debug && ++ticks % 5 === 0) {
         const measures = measureFrame(sample);
-        console.debug("[expression]", measures ? Object.fromEntries(Object.entries(measures).map(([key, number]) => [key, Math.round(number * 100) / 100])) : `faces=${sample.faceCount}`);
+        console.debug("[expression]", measures
+          ? {
+              ...Object.fromEntries(Object.entries(measures).map(([key, number]) => [key, Math.round(number * 100) / 100])),
+              lipOpening: sample.lipOpening == null ? null : Math.round(sample.lipOpening * 1000) / 1000,
+            }
+          : `faces=${sample.faceCount}`);
       }
 
       const { ok, issue } = evaluateFrame(sample);

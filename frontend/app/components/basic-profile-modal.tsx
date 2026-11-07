@@ -170,7 +170,7 @@ export function BasicProfileModal({
         onKeyDown={(event) => {
           if (event.key === "Escape" && !isSaving) onDefer();
         }}
-        className="my-auto max-h-[min(90vh,760px)] w-full max-w-xl overflow-y-auto rounded-xl border border-border bg-surface p-6 shadow-xl"
+        className={`my-auto max-h-[min(90vh,760px)] w-full ${cameraOpen ? "max-w-5xl" : "max-w-xl"} overflow-y-auto rounded-xl border border-border bg-surface p-6 shadow-xl`}
       >
         <header>
           <h2 id="basic-profile-title" className="text-headline-lg text-text">

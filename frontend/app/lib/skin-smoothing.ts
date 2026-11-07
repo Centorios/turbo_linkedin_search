@@ -30,6 +30,18 @@ function createCanvas(width: number, height: number): { canvas: HTMLCanvasElemen
   return { canvas, context };
 }
 
+export function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("No se pudo generar la foto."));
+        return;
+      }
+      resolve(blob);
+    }, "image/jpeg", 0.9);
+  });
+}
+
 export async function createSkinSmoothedPhoto(
   source: HTMLCanvasElement,
   contours: SkinContours,
@@ -61,13 +73,5 @@ export async function createSkinSmoothedPhoto(
   output.context.globalAlpha = SKIN_BLEND;
   output.context.drawImage(skinLayer.canvas, 0, 0);
 
-  return new Promise<Blob>((resolve, reject) => {
-    output.canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error("No se pudo generar la foto embellecida."));
-        return;
-      }
-      resolve(blob);
-    }, "image/jpeg", 0.9);
-  });
+  return canvasToJpeg(output.canvas);
 }

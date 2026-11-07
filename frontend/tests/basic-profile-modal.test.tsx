@@ -11,6 +11,14 @@ vi.mock("../app/lib/face-analyzer", () => ({
   }),
 }));
 
+vi.mock("../app/lib/background-analyzer", () => ({
+  analyzePhotoForBackground: async () => ({
+    width: 2,
+    height: 2,
+    confidence: new Float32Array([1, 1, 1, 1]),
+  }),
+}));
+
 const mocks = vi.hoisted(() => ({
   upload: vi.fn(),
   remove: vi.fn(),
@@ -59,11 +67,13 @@ beforeEach(() => {
     beginPath: vi.fn(),
     closePath: vi.fn(),
     clip: vi.fn(),
+    createImageData: vi.fn((width: number, height: number) => ({ data: new Uint8ClampedArray(width * height * 4) })),
     drawImage: vi.fn(),
     fill: vi.fn(),
     fillRect: vi.fn(),
     lineTo: vi.fn(),
     moveTo: vi.fn(),
+    putImageData: vi.fn(),
     restore: vi.fn(),
     save: vi.fn(),
   })) as never;
@@ -118,6 +128,7 @@ describe("Foto de perfil", () => {
   it("permite elegir la foto embellecida, la muestra y la sube al guardar", async () => {
     renderModal();
     const tracks = await openCamera();
+    expect(screen.getByTestId("basic-profile-modal").className).toContain("max-w-5xl");
 
     fireEvent.click(screen.getByTestId("camera-take-photo"));
 

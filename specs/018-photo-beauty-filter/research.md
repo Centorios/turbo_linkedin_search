@@ -2,18 +2,18 @@
 
 ## Decisión
 
-Generar en el dispositivo una sola alternativa con suavizado sutil usando Canvas 2D nativo y una máscara basada en landmarks del rostro provistos por MediaPipe Face Landmarker. La máscara cubre el interior del óvalo facial y excluye ojos, cejas y boca; la imagen original permanece intacta. El radio de suavizado y la mezcla deben ser fijos y conservadores, ajustados visualmente en la implementación sin exponer controles al usuario.
+Generar en el dispositivo versiones con y sin fondo desenfocado mediante MediaPipe Image Segmenter (Selfie Segmenter) y Canvas 2D, con un interruptor activado por defecto. Aplicar el suavizado sutil, limitado por landmarks de MediaPipe Face Landmarker, solo a la alternativa embellecida. La segmentación usa el modelo local `frontend/public/mediapipe/selfie_segmenter.tflite`, obtenido de [Google MediaPipe Model Storage](https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite) (249,537 bytes); no se carga desde la red durante el uso.
 
-Si no se obtiene un único rostro con landmarks válidos, el navegador no soporta el filtro requerido o se produce un error de procesamiento, no se presenta una versión suavizada: se informa el problema y se conserva la opción original.
+Si falla la segmentación, se informa y se ofrecen las variantes disponibles sin desenfoque. Si falla el suavizado, se conserva la original con y sin desenfoque cuando sea posible. Si solo falla el suavizado de la variante desenfocada, se informa y se puede desactivar el desenfoque para elegir la embellecida.
 
 ## Rationale
 
 - `frontend/app/lib/face-analyzer.ts` ya carga `@mediapipe/tasks-vision` dinámicamente, usa el modelo `frontend/public/mediapipe/face_landmarker.task` y puede intentar GPU con fallback a CPU.
-- El proyecto ya contiene el modelo y los archivos WASM localmente; no requiere descargar recursos del proveedor durante la captura ni incorporar paquetes nuevos.
+- `@mediapipe/tasks-vision` expone `ImageSegmenter`; el modelo de selfie segmentation se incluye junto al modelo facial y los archivos WASM, sin descargar recursos durante la captura ni incorporar paquetes nuevos.
 - `frontend/app/components/camera-capture.tsx` ya recorta a 640×640 y genera JPEG mediante Canvas 2D, que puede producir la alternativa en el mismo dispositivo.
-- La máscara facial evita aplicar el suavizado a toda la foto y reduce la pérdida de detalle en rasgos que deben conservarse.
+- La máscara de persona permite desenfocar el fondo y conservar a la persona; la máscara facial limita el suavizado para reducir la pérdida de detalle en ojos, cejas y boca.
 - Un único procesamiento por captura mantiene el costo limitado; se conserva el resultado mientras el usuario compara las imágenes.
-- Ante falta de landmarks, una imagen original seleccionable es más segura que aplicar un desenfoque global que altere ojos, labios, pelo o fondo.
+- Ante falta de segmentación, una captura original seleccionable es más segura que aplicar un desenfoque global que altere a la persona.
 
 ## Alternatives Considered
 
@@ -23,6 +23,7 @@ Si no se obtiene un único rostro con landmarks válidos, el navegador no soport
 - **SDK o biblioteca de belleza de terceros**: descartado para evitar una dependencia nueva, controles o efectos fuera del alcance, y procesamiento externo no necesario.
 - **Procesamiento en backend/servicio**: descartado porque la aclaración exige procesar la foto en el dispositivo.
 - **Suavizado sin rostro detectable**: descartado para evitar editar regiones equivocadas; se mantiene la alternativa original con un mensaje.
+- **Desenfocar toda la foto**: descartado porque perdería nitidez en la persona; se segmenta el primer plano y se recompone sobre el fondo desenfocado.
 
 ## Riesgos y mitigaciones
 
@@ -37,4 +38,5 @@ Si no se obtiene un único rostro con landmarks válidos, el navegador no soport
 - Probar las transiciones de captura, procesamiento, comparación, selección, cancelación y repetición con React Testing Library.
 - Probar como lógica pura la proyección de landmarks y exclusión de ojos, cejas y boca usando fixtures, si esa lógica se separa.
 - Simular falta de rostro, landmarks inválidos, fallo de Canvas y ausencia de soporte; en cada caso comprobar que la foto original puede seleccionarse.
+- Probar máscara de persona válida, máscara inválida y fallback a la captura sin efectos cuando falla la segmentación.
 - Revisar visualmente en navegadores de escritorio y móviles que el efecto sea sutil y no difumine los rasgos protegidos; las pruebas automatizadas no deben afirmar calidad visual a partir de mocks de Canvas.

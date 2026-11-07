@@ -70,6 +70,9 @@ No se requieren cambios fundacionales de backend, almacenamiento, APIs ni config
 **Purpose**: Validación transversal, accesibilidad, compatibilidad y cierre de documentación.
 
 - [X] T010 Ejecutar las pruebas focalizadas y la validación de build del frontend descritas en `specs/018-photo-beauty-filter/quickstart.md`, ajustar el flujo si falla alguna comprobación y registrar el resultado verificado allí.
+- [X] T011 Agregar pruebas para la selección de máscara de persona, el fallback GPU/CPU, la composición del fondo desenfocado y los fallbacks cuando falla la segmentación o el suavizado de piel.
+- [X] T012 Incluir el modelo local Selfie Segmenter, generar la foto base con el fondo desenfocado y aplicar el suavizado de piel solo a la alternativa embellecida.
+- [X] T013 Revalidar build, pruebas y documentación después de incorporar el desenfoque local del fondo.
 
 ---
 
