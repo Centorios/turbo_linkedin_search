@@ -1,5 +1,6 @@
-import type { FaceLandmarker, FaceLandmarkerResult } from "@mediapipe/tasks-vision";
+import type { FaceLandmarker, FaceLandmarkerResult, NormalizedLandmark } from "@mediapipe/tasks-vision";
 import type { Blendshapes, FrameSample } from "./expression-check";
+import type { NormalizedPoint, SkinContours } from "./skin-smoothing";
 
 export type FaceAnalyzer = {
   analyze(video: HTMLVideoElement, timestampMs: number): FrameSample;
@@ -16,6 +17,15 @@ const EMPTY_SAMPLE: FrameSample = { faceCount: 0, blendshapes: null, pose: null,
 
 type Landmarks = FaceLandmarkerResult["faceLandmarks"][number];
 type FacialMatrix = FaceLandmarkerResult["facialTransformationMatrixes"][number];
+type LandmarkConnection = { start: number; end: number };
+type FaceContourSets = {
+  FACE_LANDMARKS_FACE_OVAL: LandmarkConnection[];
+  FACE_LANDMARKS_LEFT_EYE: LandmarkConnection[];
+  FACE_LANDMARKS_RIGHT_EYE: LandmarkConnection[];
+  FACE_LANDMARKS_LEFT_EYEBROW: LandmarkConnection[];
+  FACE_LANDMARKS_RIGHT_EYEBROW: LandmarkConnection[];
+  FACE_LANDMARKS_LIPS: LandmarkConnection[];
+};
 
 function toBlendshapes(result: FaceLandmarkerResult): Blendshapes | null {
   const categories = result.faceBlendshapes[0]?.categories;
@@ -51,17 +61,110 @@ function toBox(landmarks: Landmarks | undefined, video: HTMLVideoElement): Frame
   return { cx: (minX + maxX) / 2, cy: (Math.min(...ys) + Math.max(...ys)) / 2, width: maxX - minX };
 }
 
-async function createLandmarker(delegate: "GPU" | "CPU"): Promise<FaceLandmarker> {
+async function createLandmarker(delegate: "GPU" | "CPU", runningMode: "VIDEO" | "IMAGE" = "VIDEO"): Promise<FaceLandmarker> {
   // Dynamic import keeps MediaPipe out of the server render and the initial bundle.
   const { FaceLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
   const fileset = await FilesetResolver.forVisionTasks(WASM_PATH);
   return FaceLandmarker.createFromOptions(fileset, {
     baseOptions: { modelAssetPath: MODEL_PATH, delegate },
-    runningMode: "VIDEO",
+    runningMode,
     numFaces: 2,
     outputFaceBlendshapes: true,
     outputFacialTransformationMatrixes: true,
   });
+}
+
+function contourRegions(connections: LandmarkConnection[], landmarks: NormalizedLandmark[]): NormalizedPoint[][] {
+  const adjacency = new Map<number, Set<number>>();
+  for (const { start, end } of connections) {
+    if (!adjacency.has(start)) adjacency.set(start, new Set());
+    if (!adjacency.has(end)) adjacency.set(end, new Set());
+    adjacency.get(start)?.add(end);
+    adjacency.get(end)?.add(start);
+  }
+
+  const remaining = new Set(adjacency.keys());
+  const regions: NormalizedPoint[][] = [];
+  while (remaining.size) {
+    const seed = remaining.values().next().value as number;
+    const component: number[] = [];
+    const pending = [seed];
+    remaining.delete(seed);
+    while (pending.length) {
+      const current = pending.pop() as number;
+      component.push(current);
+      for (const neighbor of adjacency.get(current) ?? []) {
+        if (!remaining.delete(neighbor)) continue;
+        pending.push(neighbor);
+      }
+    }
+
+    const degrees = component.map((index) => adjacency.get(index)?.size ?? 0);
+    if (degrees.every((degree) => degree === 2)) {
+      const ordered = [component[0]];
+      let previous = -1;
+      let current = component[0];
+      while (ordered.length <= component.length) {
+        const next = [...(adjacency.get(current) ?? [])].find((index) => index !== previous);
+        if (next === undefined || next === ordered[0]) break;
+        ordered.push(next);
+        previous = current;
+        current = next;
+      }
+      if (ordered.length === component.length) {
+        regions.push(ordered.map((index) => landmarks[index]));
+        continue;
+      }
+    }
+
+    const points = component.map((index) => landmarks[index]);
+    const padding = 0.012;
+    const minX = Math.max(0, Math.min(...points.map((point) => point.x)) - padding);
+    const maxX = Math.min(1, Math.max(...points.map((point) => point.x)) + padding);
+    const minY = Math.max(0, Math.min(...points.map((point) => point.y)) - padding);
+    const maxY = Math.min(1, Math.max(...points.map((point) => point.y)) + padding);
+    regions.push([
+      { x: minX, y: minY },
+      { x: maxX, y: minY },
+      { x: maxX, y: maxY },
+      { x: minX, y: maxY },
+    ]);
+  }
+  return regions;
+}
+
+function toSkinContours(result: FaceLandmarkerResult, contourSets: FaceContourSets): SkinContours | null {
+  const landmarks = result.faceLandmarks[0];
+  if (result.faceLandmarks.length !== 1 || !landmarks?.length) return null;
+  if (landmarks.some(({ x, y }) => !Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1)) return null;
+
+  const faceOval = contourRegions(contourSets.FACE_LANDMARKS_FACE_OVAL, landmarks)[0];
+  const protectedRegions = [
+    contourSets.FACE_LANDMARKS_LEFT_EYE,
+    contourSets.FACE_LANDMARKS_RIGHT_EYE,
+    contourSets.FACE_LANDMARKS_LEFT_EYEBROW,
+    contourSets.FACE_LANDMARKS_RIGHT_EYEBROW,
+    contourSets.FACE_LANDMARKS_LIPS,
+  ].flatMap((connections) => contourRegions(connections, landmarks));
+
+  if (!faceOval || faceOval.length < 3 || protectedRegions.some((region) => region.length < 3)) return null;
+  return { faceOval, protectedRegions };
+}
+
+export async function analyzePhotoForSkin(image: HTMLCanvasElement): Promise<SkinContours | null> {
+  const { FaceLandmarker } = await import("@mediapipe/tasks-vision");
+  let landmarker: FaceLandmarker;
+  try {
+    landmarker = await createLandmarker("GPU", "IMAGE");
+  } catch {
+    landmarker = await createLandmarker("CPU", "IMAGE");
+  }
+
+  try {
+    return toSkinContours(landmarker.detect(image), FaceLandmarker);
+  } finally {
+    landmarker.close();
+  }
 }
 
 export const createFaceAnalyzer: FaceAnalyzerFactory = async () => {

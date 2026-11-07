@@ -5,6 +5,10 @@ import { BasicProfileModal } from "../app/components/basic-profile-modal";
 // Sin MediaPipe real: la verificación queda "no disponible" y la cámara se usa como antes.
 vi.mock("../app/lib/face-analyzer", () => ({
   createFaceAnalyzer: () => Promise.reject(new Error("MediaPipe no se carga en pruebas")),
+  analyzePhotoForSkin: async () => ({
+    faceOval: [{ x: 0.2, y: 0.1 }, { x: 0.8, y: 0.1 }, { x: 0.5, y: 0.9 }],
+    protectedRegions: [[{ x: 0.4, y: 0.4 }, { x: 0.6, y: 0.4 }, { x: 0.5, y: 0.5 }]],
+  }),
 }));
 
 const mocks = vi.hoisted(() => ({
@@ -51,7 +55,18 @@ beforeEach(() => {
   URL.createObjectURL = vi.fn(() => "blob:foto");
   URL.revokeObjectURL = vi.fn();
   Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: mocks.getUserMedia } });
-  HTMLCanvasElement.prototype.getContext = vi.fn(() => ({ drawImage: vi.fn() })) as never;
+  HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
+    beginPath: vi.fn(),
+    closePath: vi.fn(),
+    clip: vi.fn(),
+    drawImage: vi.fn(),
+    fill: vi.fn(),
+    fillRect: vi.fn(),
+    lineTo: vi.fn(),
+    moveTo: vi.fn(),
+    restore: vi.fn(),
+    save: vi.fn(),
+  })) as never;
   HTMLCanvasElement.prototype.toBlob = vi.fn((callback: BlobCallback) => callback(new Blob(["jpeg"], { type: "image/jpeg" }))) as never;
 });
 
@@ -100,11 +115,15 @@ describe("Foto de perfil", () => {
     expect(screen.getByTestId("profile-photo-browse")).toBeTruthy();
   });
 
-  it("toma una foto con la cámara, la muestra y la sube al guardar", async () => {
+  it("permite elegir la foto embellecida, la muestra y la sube al guardar", async () => {
     renderModal();
     const tracks = await openCamera();
 
     fireEvent.click(screen.getByTestId("camera-take-photo"));
+
+    expect(await screen.findByTestId("camera-photo-review")).toBeTruthy();
+    expect(await screen.findByRole("img", { name: "Foto embellecida" })).toBeTruthy();
+    fireEvent.click(screen.getByTestId("camera-use-beautified"));
 
     expect(screen.queryByTestId("profile-photo-camera")).toBeNull();
     tracks.forEach((item) => expect(item.stop).toHaveBeenCalled());
@@ -115,7 +134,7 @@ describe("Foto de perfil", () => {
     await waitFor(() => expect(mocks.onSave).toHaveBeenCalled());
     const uploaded = mocks.upload.mock.calls[0][0] as File;
     expect(uploaded.type).toBe("image/jpeg");
-    expect(uploaded.name).toBe("foto-camara.jpg");
+    expect(uploaded.name).toBe("foto-camara-embellecida.jpg");
     expect(mocks.onSave.mock.calls[0][0].photoPath).toBe("user-a/photo.jpg");
   });
 
@@ -123,6 +142,8 @@ describe("Foto de perfil", () => {
     renderModal();
     await openCamera();
     fireEvent.click(screen.getByTestId("camera-take-photo"));
+    await screen.findByTestId("camera-photo-review");
+    fireEvent.click(screen.getByTestId("camera-use-original"));
 
     fireEvent.click(screen.getByTestId("profile-photo-remove"));
 
